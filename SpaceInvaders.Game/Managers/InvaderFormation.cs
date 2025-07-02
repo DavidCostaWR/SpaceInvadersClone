@@ -178,5 +178,30 @@ namespace SpaceInvaders.Game.Managers
                 }
             }
         }
+
+        public void Reset()
+        {
+            // Clear existing invaders
+            for (int row = 0; row < _rows; row++)
+            {
+                for (int col = 0; col < _columns; col++)
+                {
+                    _grid[row, col] = null;
+                }
+            }
+
+            // Reset speed and direction
+            _horizontalSpeed = GameConstants.INVADER_BASE_SPEED;
+            _direction = 1;
+
+            // Reinitialize
+            var formationWidth = _columns * GameConstants.INVADER_HORIZONTAL_SPACING;
+            _formationPosition = new Vector2(
+                (GameConstants.GAME_WIDTH - formationWidth) / 2f,
+                GameConstants.FORMATION_TOP_MARGIN
+            );
+
+            InitializeInvaders();
+        }
     }
 }

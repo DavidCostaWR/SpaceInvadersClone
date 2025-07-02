@@ -1,8 +1,7 @@
 ﻿using SpaceInvaders.Game.Domain;
 using SpaceInvaders.Game.Graphics;
-using SpaceInvaders.Game.Entities;
+using System.ComponentModel.DataAnnotations;
 using Timer = System.Windows.Forms.Timer;
-using SpaceInvaders.Game.Managers;
 
 namespace SpaceInvaders.Game
 {
@@ -10,10 +9,8 @@ namespace SpaceInvaders.Game
     {
         private readonly Renderer _renderer;
         private readonly Timer _gameTimer;
-        private readonly InvaderFormation _invaderFormation;
+        private readonly GameCore _game;
         private DateTime _lastUpdate = DateTime.Now;
-        private int _animationFrame = 0;
-        private float _animationTimer = 0f;
 
         public GameForm()
         {
@@ -21,11 +18,7 @@ namespace SpaceInvaders.Game
             SetupWindow();
 
             _renderer = new Renderer();
-            _invaderFormation = new InvaderFormation();
-
-            // Subscribe to game events
-            _invaderFormation.ReachedBottom += OnInvadersReachedBottom;
-            _invaderFormation.InvaderDestroyed += OnInvaderDestroyed;
+            _game = new GameCore();
 
             // Setup game timer
             _gameTimer = new Timer();
@@ -41,7 +34,7 @@ namespace SpaceInvaders.Game
             ClientSize = new Size(GameConstants.DISPLAY_WIDTH, GameConstants.DISPLAY_HEIGHT);
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
-            DoubleBuffered = true; // Prevents flickering
+            DoubleBuffered = true;
         }
 
         private void GameTimer_Tick(object? sender, EventArgs e)
@@ -56,15 +49,20 @@ namespace SpaceInvaders.Game
             var deltaTime = (float)(now - _lastUpdate).TotalSeconds;
             _lastUpdate = now;
 
-            // Update game objects
-            _invaderFormation.Update(deltaTime);
+            _game.Update(deltaTime);
 
-            // Update animation
-            _animationTimer += deltaTime;
-            if (_animationTimer >= GameConstants.INVADER_ANIMATION_INTERVAL)
+            switch (_game.State)
             {
-                _animationTimer -= GameConstants.INVADER_ANIMATION_INTERVAL;
-                _animationFrame = (_animationFrame + 1) % 2;
+                case GameState.Playing:
+                    break;
+                case GameState.GameOver:
+                    _gameTimer.Stop();
+                    MessageBox.Show("Game Over! Invaders reached Earth!", "Game Over");
+                    break;
+                case GameState.Victory:
+                    _gameTimer.Stop();
+                    MessageBox.Show($"Victory! Score: {_game.Score}", "Victory");
+                    break;
             }
         }
 
@@ -76,32 +74,24 @@ namespace SpaceInvaders.Game
             _renderer.Clear(Color.Black);
 
             // Draw all invaders
-            foreach (var invader in _invaderFormation.Invaders)
+            foreach (var invader in _game.Invaders)
             {
                 var sprite = SpriteRepository.Instance.GetInvaderSprite(
                     invader.Type,
-                    _animationFrame
+                    _game.CurrentAnimationFrame
                 );
                 _renderer.DrawSprite(sprite, invader.Position, Color.White);
             }
 
+            // Draw score and lives (teporary text rendering)
+            using var font = new Font("Arial", 12);
+            using var brush = new SolidBrush(Color.White);
+            e.Graphics.DrawString($"Score: {_game.Score}", font, brush, 10, 10);
+            e.Graphics.DrawString($"Lives: {_game.Lives}", font, brush, 10, 30);
+
             // Present to screen
             var targetRect = new Domain.Rectangle(0, 0, ClientSize.Width, ClientSize.Height);
             _renderer.Present(e.Graphics, targetRect);
-        }
-
-        private void OnInvadersReachedBottom(object? sender, EventArgs e)
-        {
-            // Game over logic will go here
-            _gameTimer.Stop();
-            MessageBox.Show("Game Over! Invaders reached Earth!", "Game Over");
-        }
-
-        private void OnInvaderDestroyed(object? sender, Invader invader)
-        {
-            // Score logic will go here
-            // For now, just track it
-            Console.WriteLine($"Invader destroyed! Points: {invader.PointValue}");
         }
 
         protected override void OnFormClosed(FormClosedEventArgs e)
