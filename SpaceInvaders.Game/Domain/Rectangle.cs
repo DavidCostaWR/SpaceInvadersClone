@@ -23,6 +23,12 @@
             Height = height;
         }
 
+        public System.Drawing.Rectangle ToDrawingRectangle()
+            => new((int)X, (int)Y, (int)Width, (int)Height);
+
+        public static implicit operator System.Drawing.Rectangle(Rectangle rect)
+            => rect.ToDrawingRectangle();
+
         public Rectangle(Vector2 position, Vector2 size)
             : this(position.X, position.Y, size.X, size.Y) { }
 

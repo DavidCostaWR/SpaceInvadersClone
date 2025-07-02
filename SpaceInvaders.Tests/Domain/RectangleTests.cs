@@ -18,5 +18,19 @@ namespace SpaceInvaders.Tests.Domain
             Assert.True(rect1.Intersects(rect2));
             Assert.False(rect1.Intersects(rect3));
         }
+
+        [Fact]
+        public void ToDrawingRectangle_ShouldConvertCorrectly()
+        {
+            // Arrange
+            var rect = new Rectangle(10.5f, 20.7f, 30.2f, 40.9f);
+            var expected = new System.Drawing.Rectangle(10, 20, 30, 40);    // truncated to int
+
+            // Act
+            var drawingRect = rect.ToDrawingRectangle();
+
+            // Assert
+            Assert.Equal(expected, drawingRect);
+        }
     }
 }
