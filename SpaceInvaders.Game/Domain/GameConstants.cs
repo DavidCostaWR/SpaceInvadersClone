@@ -1,4 +1,6 @@
-﻿namespace SpaceInvaders.Game.Domain
+﻿using SpaceInvaders.Game.Graphics;
+
+namespace SpaceInvaders.Game.Domain
 {
     /// <summary>
     /// Central configuration for the game.
@@ -12,6 +14,26 @@
         public const int DISPLAY_SCALE = 3;
         public const int DISPLAY_WIDTH = GAME_WIDTH * DISPLAY_SCALE;
         public const int DISPLAY_HEIGHT = GAME_HEIGHT * DISPLAY_SCALE;
+
+        // Player
+        public const float PLAYER_SPEED = 100f; // Pixels per second
+        public const float PLAYER_START_Y = 230f; // Near the bottom of the screen
+        public const float PLAYER_FIRE_COOLDOWN = 0.5f; // Seconds between shots
+        public static Vector2 PlayerStartPosition
+        {
+            get
+            {
+                float playerWidth = 13f; // Default player width
+                try
+                {
+                    var sprite = SpriteRepository.Instance.GetSprite(SpriteKey.Player);
+                    playerWidth = sprite.Width;
+                }
+                catch { }
+
+                return new Vector2((GAME_WIDTH / 2f - playerWidth) / 2f, PLAYER_START_Y);
+            }
+        }
 
         // Formation
         public const int INVADER_ROWS = 5;

@@ -6,7 +6,7 @@
     /// </summary>
     public abstract class Entity : IEntity
     {
-        public Vector2 Position { get; protected set; }
+        public Vector2 Position { get; set; }
         public Vector2 Size { get; }
         public bool IsActive { get; protected set; }
 

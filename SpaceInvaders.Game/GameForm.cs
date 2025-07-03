@@ -1,6 +1,6 @@
 ﻿using SpaceInvaders.Game.Domain;
 using SpaceInvaders.Game.Graphics;
-using System.ComponentModel.DataAnnotations;
+using SpaceInvaders.Game.Input;
 using Timer = System.Windows.Forms.Timer;
 
 namespace SpaceInvaders.Game
@@ -9,6 +9,7 @@ namespace SpaceInvaders.Game
     {
         private readonly Renderer _renderer;
         private readonly Timer _gameTimer;
+        private readonly KeyboardInputHandler _inputHandler;
         private readonly GameCore _game;
         private DateTime _lastUpdate = DateTime.Now;
 
@@ -18,7 +19,12 @@ namespace SpaceInvaders.Game
             SetupWindow();
 
             _renderer = new Renderer();
-            _game = new GameCore();
+            _inputHandler = new KeyboardInputHandler();
+
+            _game = new GameCore(_inputHandler);
+
+            // Enable key events
+            KeyPreview = true;  // Form receives key events before controls
 
             // Setup game timer
             _gameTimer = new Timer();
@@ -43,11 +49,31 @@ namespace SpaceInvaders.Game
             Invalidate(); // Triggers a repaint
         }
 
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            _inputHandler.KeyDown(e.KeyCode);
+
+            // Prevent beep sound on spacebar
+            if (e.KeyCode == Keys.Space)
+            {
+                e.Handled = true;
+            }
+        }
+
+        protected override void OnKeyUp(KeyEventArgs e)
+        {
+            base.OnKeyUp(e);
+            _inputHandler.KeyUp(e.KeyCode);
+        }
+
         private void Update()
         {
             var now = DateTime.Now;
             var deltaTime = (float)(now - _lastUpdate).TotalSeconds;
             _lastUpdate = now;
+
+            _inputHandler.Update();
 
             _game.Update(deltaTime);
 
@@ -83,15 +109,30 @@ namespace SpaceInvaders.Game
                 _renderer.DrawSprite(sprite, invader.Position, Color.White);
             }
 
-            // Draw score and lives (teporary text rendering)
-            using var font = new Font("Arial", 12);
-            using var brush = new SolidBrush(Color.White);
-            e.Graphics.DrawString($"Score: {_game.Score}", font, brush, 10, 10);
-            e.Graphics.DrawString($"Lives: {_game.Lives}", font, brush, 10, 30);
+            // Draw player
+            var playerSprite = SpriteRepository.Instance.GetSprite(SpriteKey.Player);
+            _renderer.DrawSprite(playerSprite, _game.Player.Position, Color.White);
+
+            // Draw HUD (temporary text rendering)
+            DrawHUD(e.Graphics);
 
             // Present to screen
             var targetRect = new Domain.Rectangle(0, 0, ClientSize.Width, ClientSize.Height);
             _renderer.Present(e.Graphics, targetRect);
+        }
+
+        private void DrawHUD(System.Drawing.Graphics graphics)
+        {
+            var font = new Font("Consolas", 12);
+            var brush = new SolidBrush(Color.White);
+
+            // Score at top left
+            graphics.DrawString($"SCORE: {_game.Score:D5}", font, brush, 10, 10);
+
+            // Lives at top right
+            var livesText = $"LIVES: {_game.Lives}";
+            var textSize = graphics.MeasureString(livesText, font);
+            graphics.DrawString(livesText, font, brush, ClientSize.Width - textSize.Width - 10, 10);
         }
 
         protected override void OnFormClosed(FormClosedEventArgs e)

@@ -15,12 +15,18 @@ namespace SpaceInvaders.Game.Graphics
 
         public BitmapSprite(string[] pattern)
         {
-            Width = pattern.Length;
-            Height = pattern[0].Length;
+            if (pattern == null || pattern.Length == 0)
+                throw new ArgumentException("Pattern cannot be null or empty");
+
+            Height = pattern.Length;
+            Width = pattern[0].Length;
             _pixels = new bool[Width, Height];
 
             for (int y = 0; y < Height; y++)
             {
+                if (pattern[y].Length != Width)
+                    throw new ArgumentException($"Inconsistent row width at row {y}");
+
                 for (int x = 0; x < Width; x++)
                 {
                     _pixels[x, y] = pattern[y][x] != ' ';

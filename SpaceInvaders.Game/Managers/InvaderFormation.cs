@@ -18,6 +18,11 @@ namespace SpaceInvaders.Game.Managers
         private float _dropDistance;
         private int _activeCount;
 
+        private int _leftmostColumn;
+        private int _rightmostColumn;
+        private int _bottomRow;
+        private int _topRow;
+
         // Events for game integration
         public event EventHandler<Invader>? InvaderDestroyed;
         public event EventHandler? ReachedBottom;
@@ -35,14 +40,28 @@ namespace SpaceInvaders.Game.Managers
             _horizontalSpeed = GameConstants.INVADER_BASE_SPEED;
             _dropDistance = GameConstants.INVADER_DROP_DISTANCE;
 
+            InitializeFormation();
+        }
+
+        private void InitializeFormation()
+        {
+            var formationWidth = CalculateFormationWidth();
+
             // Center the formation
-            var formationWidth = columns * GameConstants.INVADER_HORIZONTAL_SPACING;
             _formationPosition = new Vector2(
                 (GameConstants.GAME_WIDTH - formationWidth) / 2f,
                 GameConstants.FORMATION_TOP_MARGIN
-                );
+            );
 
             InitializeInvaders();
+            UpdateActiveBounds();
+        }
+
+        private float CalculateFormationWidth()
+        {
+            var spacing = GameConstants.INVADER_HORIZONTAL_SPACING;
+            var largestInvaderWidth = Invader.GetSizeForType(InvaderType.Large).X;
+            return (_columns - 1) * spacing + largestInvaderWidth;
         }
 
         private void InitializeInvaders()
@@ -58,6 +77,28 @@ namespace SpaceInvaders.Game.Managers
                     var position = GetInvaderPosition(row, col);
                     _grid[row, col] = new Invader(position, invaderType);
                     _activeCount++;
+                }
+            }
+        }
+
+        private void UpdateActiveBounds()
+        {
+            _leftmostColumn = _columns;
+            _rightmostColumn = -1;
+            _topRow = _rows;
+            _bottomRow = -1;
+
+            for (int row = 0; row < _rows; row++)
+            {
+                for (int col = 0; col < _columns; col++)
+                {
+                    if (_grid[row, col]?.IsActive == true)
+                    {
+                        _leftmostColumn = Math.Min(_leftmostColumn, col);
+                        _rightmostColumn = Math.Max(_rightmostColumn, col);
+                        _topRow = Math.Min(_topRow, row);
+                        _bottomRow = Math.Max(_bottomRow, row);
+                    }
                 }
             }
         }
@@ -101,14 +142,32 @@ namespace SpaceInvaders.Game.Managers
 
         private bool CheckBoundaryCollision(Vector2 movement)
         {
-            foreach (var invader in GetActiveInvaders())
+            if (_direction > 0) // Moving right
             {
-                var futurePosition = invader.Position + movement;
-
-                if (futurePosition.X < 0 || 
-                    futurePosition.X + invader.Size.X > GameConstants.GAME_WIDTH)
+                // Check righrmost invader in each row
+                for (int row = _topRow; row <= _bottomRow; row++)
                 {
-                    return true; 
+                    var invader = _grid[row, _rightmostColumn];
+                    if (invader?.IsActive == true)
+                    {
+                        var futurePosition = invader.Position + movement;
+                        if (futurePosition.X + invader.Size.X > GameConstants.GAME_WIDTH)
+                            return true; // Collision with right boundary
+                    }
+                }
+            }
+            else // Moving left
+            {
+                // Check leftmost invader in each row
+                for (int row = _topRow; row <= _bottomRow; row++)
+                {
+                    var invader = _grid[row, _leftmostColumn];
+                    if (invader?.IsActive == true)
+                    {
+                        var futurePosition = invader.Position + movement;
+                        if (futurePosition.X < 0)
+                            return true; // Collision with left boundary
+                    }
                 }
             }
             return false;
@@ -128,18 +187,35 @@ namespace SpaceInvaders.Game.Managers
             var dropMovement = Vector2.Down * _dropDistance;
             _formationPosition += dropMovement;
 
+            bool reachedBottom = false;
+
             foreach (var invader in GetActiveInvaders())
             {
                 invader.Move(dropMovement);
 
-                var bottomEdge = invader.Position.Y + invader.Size.Y;
-                var dangerLine = GameConstants.GAME_HEIGHT - GameConstants.FORMATION_BOTTOM_DANGER_ZONE;
-
-                if (bottomEdge >= dangerLine)
+                // Check only the bottom row invaders
+                if (_bottomRow >= 0 && _bottomRow < _rows)
                 {
-                    ReachedBottom?.Invoke(this, EventArgs.Empty);
+                    for (int col = _leftmostColumn; col <= _rightmostColumn; col++)
+                    {
+                        var bottomInvader = _grid[_bottomRow, col];
+                        if (bottomInvader?.IsActive == true)
+                        {
+                            var bottomEdge = bottomInvader.Position.Y + bottomInvader.Size.Y;
+                            var dangerLine = GameConstants.GAME_HEIGHT - GameConstants.FORMATION_BOTTOM_DANGER_ZONE;
+
+                            if (bottomEdge >= dangerLine)
+                            {
+                                reachedBottom = true;
+                                break;
+                            }
+                        }
+                    }
                 }
             }
+
+            if (reachedBottom)
+                ReachedBottom?.Invoke(this, EventArgs.Empty);
         }
 
         private void ReverseDirection() => _direction *= -1;
@@ -172,6 +248,7 @@ namespace SpaceInvaders.Game.Managers
                 {
                     invader.Destroy();
                     _activeCount--;
+                    UpdateActiveBounds();
                     InvaderDestroyed?.Invoke(this, invader);
                     IncreaseSpeed();
                     break;
@@ -195,11 +272,6 @@ namespace SpaceInvaders.Game.Managers
             _direction = 1;
 
             // Reinitialize
-            var formationWidth = _columns * GameConstants.INVADER_HORIZONTAL_SPACING;
-            _formationPosition = new Vector2(
-                (GameConstants.GAME_WIDTH - formationWidth) / 2f,
-                GameConstants.FORMATION_TOP_MARGIN
-            );
 
             InitializeInvaders();
         }

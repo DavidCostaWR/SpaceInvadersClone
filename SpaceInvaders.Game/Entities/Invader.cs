@@ -1,4 +1,5 @@
 ﻿using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Graphics;
 
 namespace SpaceInvaders.Game.Entities
 {
@@ -31,15 +32,23 @@ namespace SpaceInvaders.Game.Entities
             Position += offset;
         }
 
-        private static Vector2 GetSizeForType(InvaderType type)
+        public static Vector2 GetSizeForType(InvaderType type)
         {
-            return type switch
+            try
             {
-                InvaderType.Small => new Vector2(8, 8),
-                InvaderType.Medium => new Vector2(11, 8),
-                InvaderType.Large => new Vector2(12, 8),
-                _ => throw new ArgumentException($"Unknown invader type: {type}")
-            };
+                var sprite = SpriteRepository.Instance.GetInvaderSprite(type, 0);
+                return new Vector2(sprite.Width, sprite.Height);
+            }
+            catch
+            {
+                return type switch
+                {
+                    InvaderType.Small => new Vector2(8, 8),
+                    InvaderType.Medium => new Vector2(11, 8),
+                    InvaderType.Large => new Vector2(12, 8),
+                    _ => throw new ArgumentException($"Unknown invader type: {type}")
+                };
+            }
         }
 
         private static int GetPointValueForType(InvaderType type)
