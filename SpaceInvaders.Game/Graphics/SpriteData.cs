@@ -115,5 +115,36 @@ namespace SpaceInvaders.Game.Graphics
             "X  X  XXX  X  X",
             "  X X X X X X  "
         };
+
+        // Player bullet - 1x4 pixels
+        public static readonly string[] PlayerBullet =
+        {
+            "X",
+            "X",
+            "X",
+            "X"
+        };
+
+        // Invader bullet - 3x7 pixels
+        public static readonly string[] InvaderBulletFrame1 =
+        {
+            " X ",
+            " X ",
+            " X ",
+            "XXX",
+            " X ",
+            " X ",
+            " X ",
+        };
+        public static readonly string[] InvaderBulletFrame2 =
+        {
+            " X ",
+            "X X",
+            " X ",
+            "X X",
+            " X ",
+            "X X",
+            " X "
+        };
     }
 }

@@ -29,10 +29,11 @@ namespace SpaceInvaders.Game.Graphics
             _sprites[SpriteKey.InvaderLargeFrame1] = new BitmapSprite(SpriteData.LargeInvaderFrame1);
             _sprites[SpriteKey.InvaderLargeFrame2] = new BitmapSprite(SpriteData.LargeInvaderFrame2);
             _sprites[SpriteKey.Player] = new BitmapSprite(SpriteData.Player);
-            /*  Commented, for future use
             _sprites[SpriteKey.PlayerExplosion1] = new BitmapSprite(SpriteData.PlayerExplosionFrame1);
             _sprites[SpriteKey.PlayerExplosion1] = new BitmapSprite(SpriteData.PlayerExplosionFrame1);
-             */ 
+            _sprites[SpriteKey.PlayerBullet] = new BitmapSprite(SpriteData.PlayerBullet);
+            _sprites[SpriteKey.InvaderBulletFrame1] = new BitmapSprite(SpriteData.InvaderBulletFrame1);
+            _sprites[SpriteKey.InvaderBulletFrame2] = new BitmapSprite(SpriteData.InvaderBulletFrame2);
         }
 
         public ISprite GetSprite(SpriteKey key)

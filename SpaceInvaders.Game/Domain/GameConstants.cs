@@ -53,6 +53,12 @@ namespace SpaceInvaders.Game.Domain
         public static int TotalInvaders => INVADER_ROWS * INVADER_COLUMNS;
         public static float FormationWidth => INVADER_COLUMNS * INVADER_HORIZONTAL_SPACING;
 
+        // Projectiles
+        public const float BULLET_SPEED = 300f;             // Player bullet speed (pixels/second)
+        public const float INVADER_BULLET_SPEED = 150f;     // Invader bullets are slower
+        public const int MAX_PLAYER_BULLETS = 1;            // Original game allowed only 1
+        public const int MAX_INVADER_BULLETS = 3;           // Maximum simultaneous invader shots
+
         // Game rules
         public const int PLAYER_LIVES = 3;
 

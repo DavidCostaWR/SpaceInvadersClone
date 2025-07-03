@@ -15,10 +15,13 @@
 
         // Player
         Player,
+        PlayerExplosion1,
+        PlayerExplosion2,
 
         // Projectiles
         PlayerBullet,
-        InvaderBullet,
+        InvaderBulletFrame1,
+        InvaderBulletFrame2,
 
         // UFO
         UFO
