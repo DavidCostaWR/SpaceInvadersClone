@@ -41,12 +41,12 @@ namespace SpaceInvaders.Game.Domain
         public const int INVADER_HORIZONTAL_SPACING = 16;
         public const int INVADER_VERTICAL_SPACING = 16;
         public const float INVADER_DROP_DISTANCE = 8f;
-        public const float FORMATION_TOP_MARGIN = 32f;
+        public const float FORMATION_TOP_MARGIN = 16f;
         public const float FORMATION_BOTTOM_DANGER_ZONE = 32f;
 
         // Movement
-        public const float INVADER_BASE_SPEED = 30f;
-        public const float INVADER_SPEED_INCREMENT_PER_KILL = 1.5f;
+        public const float INVADER_BASE_SPEED = 10f;
+        public const float INVADER_SPEED_INCREMENT_PER_KILL = 1.01f;
         public const float INVADER_ANIMATION_INTERVAL = 0.5f;
 
         // Calculated values (as properties)

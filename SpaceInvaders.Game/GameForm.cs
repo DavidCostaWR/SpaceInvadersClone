@@ -1,4 +1,5 @@
 ﻿using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Entities;
 using SpaceInvaders.Game.Graphics;
 using SpaceInvaders.Game.Input;
 using Timer = System.Windows.Forms.Timer;
@@ -73,9 +74,9 @@ namespace SpaceInvaders.Game
             var deltaTime = (float)(now - _lastUpdate).TotalSeconds;
             _lastUpdate = now;
 
-            _inputHandler.Update();
-
             _game.Update(deltaTime);
+
+            _inputHandler.Update();
 
             switch (_game.State)
             {
@@ -113,12 +114,38 @@ namespace SpaceInvaders.Game
             var playerSprite = SpriteRepository.Instance.GetSprite(SpriteKey.Player);
             _renderer.DrawSprite(playerSprite, _game.Player.Position, Color.White);
 
+            // Draw bullets
+            DrawBullets();
+
             // Draw HUD (temporary text rendering)
             DrawHUD(e.Graphics);
 
             // Present to screen
             var targetRect = new Domain.Rectangle(0, 0, ClientSize.Width, ClientSize.Height);
             _renderer.Present(e.Graphics, targetRect);
+        }
+
+        private void DrawBullets()
+        {
+            foreach (var bullet in _game.Bullets)
+            {
+                ISprite bulletSprite;
+                Color bulletColor;
+
+                if (bullet.Type == BulletType.Player)
+                {
+                    bulletSprite = SpriteRepository.Instance.GetSprite(SpriteKey.PlayerBullet);
+                    bulletColor = Color.White;
+                }
+                else
+                {
+                    // Invader bullet could animate - for now use frame 1
+                    bulletSprite = SpriteRepository.Instance.GetSprite(SpriteKey.InvaderBulletFrame1);
+                    bulletColor = Color.White;
+                }
+
+                _renderer.DrawSprite(bulletSprite, bullet.Position, bulletColor);
+            }
         }
 
         private void DrawHUD(System.Drawing.Graphics graphics)

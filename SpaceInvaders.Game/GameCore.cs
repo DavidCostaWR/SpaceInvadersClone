@@ -18,6 +18,8 @@ namespace SpaceInvaders.Game
     {
         private readonly InvaderFormation _invaderFormation;
         private readonly AnimationController _invaderAnimator;
+        private readonly BulletManager _bulletManager;
+        private readonly CollisionManager _collisionManager;
         private readonly Player _player;
         private GameState _state = GameState.Playing;
         private int _score;
@@ -30,6 +32,7 @@ namespace SpaceInvaders.Game
         public int ActiveInvaders => _invaderFormation.ActiveCount;
         public int CurrentAnimationFrame => _invaderAnimator.CurrentFrame;
         public Player Player => _player;
+        public IEnumerable<Bullet> Bullets => _bulletManager.Bullets;
 
         public GameCore(IInputHandler inputHandler)
         {
@@ -39,6 +42,8 @@ namespace SpaceInvaders.Game
             // Initialize game objects
             _invaderFormation = new InvaderFormation();
             _invaderAnimator = new AnimationController(GameConstants.INVADER_ANIMATION_INTERVAL);
+            _bulletManager = new BulletManager();
+            _collisionManager = new CollisionManager();
             _player = new Player(GameConstants.PlayerStartPosition, inputHandler);
             _lives = GameConstants.PLAYER_LIVES;
             _score = 0;
@@ -47,21 +52,65 @@ namespace SpaceInvaders.Game
             _invaderFormation.InvaderDestroyed += OnInvaderDestroyed;
             _invaderFormation.ReachedBottom += OnInvadersReachedBottom;
             _player.FireRequested += OnPlayerFireRequested;
+            _collisionManager.CollisionDetected += OnCollisionDetected;
         }
 
         public void Update(float deltaTime)
         {
             if (_state != GameState.Playing) return;
 
+            // Update all game objects
             _invaderFormation.Update(deltaTime);
             _invaderAnimator.Update(deltaTime);
+            _bulletManager.Update(deltaTime);
             _player.Update(deltaTime);
+
+            // Check collisions
+            _collisionManager.CheckCollisions(
+                _bulletManager.Bullets,
+                _invaderFormation.Invaders,
+                _player
+                );
 
             // Check victory condition
             if (_invaderFormation.ActiveCount == 0)
-            {
                 _state = GameState.Victory;
+        }
+
+        private void OnCollisionDetected(object? sender, CollisionEventArgs e)
+        {
+            switch (e.Type)
+            {
+                case CollisionType.PlayerBulletHitInvader:
+                    HandlePlayerBulletHitInvader(e.Entity1 as Bullet, e.Entity2 as Invader);
+                    break;
+
+                case CollisionType.InvaderBulletHitPlayer:
+                    HandleInvaderBulletHitPlayer(e.Entity1 as Bullet);
+                    break;
             }
+        }
+
+        private void HandlePlayerBulletHitInvader(Bullet? bullet, Invader? invader)
+        {
+            if (bullet == null || invader == null) return;
+
+            _bulletManager.DestroyBullet(bullet);
+            _invaderFormation.DestroyInvaderAt(invader.Position + invader.Size / 2);
+        }
+
+        private void HandleInvaderBulletHitPlayer(Bullet? bullet)
+        {
+            if (bullet == null) return;
+
+            _bulletManager.DestroyBullet(bullet);
+
+            _lives--;
+
+            if (_lives <= 0)
+                _state = GameState.GameOver;
+            else // TODO: add player respawn/invincibility period
+                Console.WriteLine($"Player hit! Lives remaining: {_lives}");
         }
 
         private void OnInvaderDestroyed(object? sender, Invader invader)
@@ -76,15 +125,22 @@ namespace SpaceInvaders.Game
 
         private void OnPlayerFireRequested(object? sender, EventArgs e)
         {
-            // TODO: Create bullet when projectile system is implemented
-            // For now, just log it
-            Console.WriteLine($"Fire requested at position: {_player.Position.X + _player.Size.X / 2}");
+            // Valvulate bullet spawn position (center-top of player)
+            var bulletX = _player.Position.X + (_player.Size.X / 2) - 0.5f;
+            var bulletY = _player.Position.Y - 1;
+
+            var bulletPosition = new Vector2(bulletX, bulletY);
+
+            if (_bulletManager.TryFirePlayerBulet(bulletPosition))
+                Console.WriteLine("Bullet fired!"); // could play sound effect here
         }
 
         public void Reset()
         {
             _invaderFormation.Reset();
             _invaderAnimator.Reset();
+            _bulletManager.Clear();
+
             _player.Position = GameConstants.PlayerStartPosition;
 
             _score = 0;

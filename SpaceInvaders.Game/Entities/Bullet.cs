@@ -26,7 +26,7 @@ namespace SpaceInvaders.Game.Entities
             Position += Vector2.Up * _velocity * deltaTime;
 
             // Deactivate if outside screen bounds
-            if (Position.Y < -Size.Y || Position.Y > GameConstants.GAME_HEIGHT)
+            if (Position.Y <= -Size.Y || Position.Y >= GameConstants.GAME_HEIGHT)
             {
                 Destroy();
             }

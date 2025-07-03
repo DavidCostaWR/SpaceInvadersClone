@@ -234,7 +234,7 @@ namespace SpaceInvaders.Game.Managers
                 for (int col = 0; col < _columns; col++)
                 {
                     var invader = _grid[row, col];
-                    if (invader != null)
+                    if (invader != null && invader.IsActive)
                         yield return invader;
                 }
             }
