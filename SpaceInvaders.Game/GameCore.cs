@@ -16,10 +16,11 @@ namespace SpaceInvaders.Game
 
     public class GameCore
     {
-        private readonly InvaderFormation _invaderFormation;
-        private readonly AnimationController _invaderAnimator;
         private readonly BulletManager _bulletManager;
         private readonly CollisionManager _collisionManager;
+        private readonly AnimationController _invaderAnimator;
+        private readonly InvaderShootingController _invaderShootingController;
+        private readonly InvaderFormation _invaderFormation;
         private readonly Player _player;
         private GameState _state = GameState.Playing;
         private int _score;
@@ -40,11 +41,14 @@ namespace SpaceInvaders.Game
                 throw new ArgumentNullException(nameof(inputHandler));
 
             // Initialize game objects
-            _invaderFormation = new InvaderFormation();
-            _invaderAnimator = new AnimationController(GameConstants.INVADER_ANIMATION_INTERVAL);
             _bulletManager = new BulletManager();
             _collisionManager = new CollisionManager();
+            _invaderAnimator = new AnimationController(GameConstants.INVADER_ANIMATION_INTERVAL);
+            _invaderShootingController = new InvaderShootingController(_bulletManager);
+
             _player = new Player(GameConstants.PlayerStartPosition, inputHandler);
+            _invaderFormation = new InvaderFormation();
+
             _lives = GameConstants.PLAYER_LIVES;
             _score = 0;
 
@@ -64,6 +68,9 @@ namespace SpaceInvaders.Game
             _invaderAnimator.Update(deltaTime);
             _bulletManager.Update(deltaTime);
             _player.Update(deltaTime);
+
+            // Update invader shooting
+            _invaderShootingController.Update(deltaTime, _invaderFormation.Invaders);
 
             // Check collisions
             _collisionManager.CheckCollisions(
@@ -140,6 +147,7 @@ namespace SpaceInvaders.Game
             _invaderFormation.Reset();
             _invaderAnimator.Reset();
             _bulletManager.Clear();
+            _invaderShootingController.Reset();
 
             _player.Position = GameConstants.PlayerStartPosition;
 

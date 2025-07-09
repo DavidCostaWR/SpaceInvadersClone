@@ -117,12 +117,12 @@ namespace SpaceInvaders.Game
             // Draw bullets
             DrawBullets();
 
-            // Draw HUD (temporary text rendering)
-            DrawHUD(e.Graphics);
-
             // Present to screen
             var targetRect = new Domain.Rectangle(0, 0, ClientSize.Width, ClientSize.Height);
             _renderer.Present(e.Graphics, targetRect);
+
+            // Draw HUD (temporary text rendering)
+            DrawHUD(e.Graphics);
         }
 
         private void DrawBullets()
@@ -130,18 +130,18 @@ namespace SpaceInvaders.Game
             foreach (var bullet in _game.Bullets)
             {
                 ISprite bulletSprite;
-                Color bulletColor;
+                Color bulletColor = Color.White;
 
                 if (bullet.Type == BulletType.Player)
                 {
                     bulletSprite = SpriteRepository.Instance.GetSprite(SpriteKey.PlayerBullet);
-                    bulletColor = Color.White;
                 }
                 else
                 {
-                    // Invader bullet could animate - for now use frame 1
-                    bulletSprite = SpriteRepository.Instance.GetSprite(SpriteKey.InvaderBulletFrame1);
-                    bulletColor = Color.White;
+                    var spriteKey = _game.CurrentAnimationFrame == 0 
+                        ? SpriteKey.InvaderBulletFrame1 
+                        : SpriteKey.InvaderBulletFrame2;
+                    bulletSprite = SpriteRepository.Instance.GetSprite(spriteKey);
                 }
 
                 _renderer.DrawSprite(bulletSprite, bullet.Position, bulletColor);
@@ -154,7 +154,8 @@ namespace SpaceInvaders.Game
             var brush = new SolidBrush(Color.White);
 
             // Score at top left
-            graphics.DrawString($"SCORE: {_game.Score:D5}", font, brush, 10, 10);
+            var scoreText = $"SCORE: {_game.Score:D5}";
+            graphics.DrawString(scoreText, font, brush, 10, 10);
 
             // Lives at top right
             var livesText = $"LIVES: {_game.Lives}";

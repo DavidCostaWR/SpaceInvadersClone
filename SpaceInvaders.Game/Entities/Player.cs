@@ -80,12 +80,11 @@ namespace SpaceInvaders.Game.Entities
 
         private void HandleFiring()
         {
-            if (_input.WasFireJustPressed)
-                if (CanFire)
-                {
-                    FireRequested?.Invoke(this, EventArgs.Empty);
-                    _fireCooldownTimer = GameConstants.PLAYER_FIRE_COOLDOWN;
-                }
+            if (_input.WasFireJustPressed && CanFire)
+            {
+                FireRequested?.Invoke(this, EventArgs.Empty);
+                _fireCooldownTimer = GameConstants.PLAYER_FIRE_COOLDOWN;
+            }
         }
     }
 }
