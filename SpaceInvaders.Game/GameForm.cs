@@ -111,8 +111,7 @@ namespace SpaceInvaders.Game
             }
 
             // Draw player
-            var playerSprite = SpriteRepository.Instance.GetSprite(SpriteKey.Player);
-            _renderer.DrawSprite(playerSprite, _game.Player.Position, Color.White);
+            DrawPlayer();
 
             // Draw bullets
             DrawBullets();
@@ -123,6 +122,33 @@ namespace SpaceInvaders.Game
 
             // Draw HUD (temporary text rendering)
             DrawHUD(e.Graphics);
+        }
+
+        private void DrawPlayer()
+        {
+            var player = _game.Player;
+
+            if (!player.ShouldRender) return;
+
+            ISprite sprite;
+            Color color = Color.White;
+
+            if (player.State == PlayerState.Dying)
+            {
+                // Use explosion sprite based on animation frame
+                var spriteKey = player.DeathAnimationFrame == 0
+                    ? SpriteKey.PlayerExplosion1
+                    : SpriteKey.PlayerExplosion2;
+                sprite = SpriteRepository.Instance.GetSprite(spriteKey);
+            }
+            else 
+            { 
+                sprite = SpriteRepository.Instance.GetSprite(SpriteKey.Player);
+
+                if (player.State == PlayerState.Respawning)
+                    color = Color.Cyan;
+            }
+            _renderer.DrawSprite(sprite, player.Position, color);
         }
 
         private void DrawBullets()

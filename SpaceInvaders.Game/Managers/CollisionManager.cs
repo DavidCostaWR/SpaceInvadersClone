@@ -1,6 +1,5 @@
 ﻿using SpaceInvaders.Game.Domain;
 using SpaceInvaders.Game.Entities;
-using System.DirectoryServices.ActiveDirectory;
 
 namespace SpaceInvaders.Game.Managers
 {
@@ -31,7 +30,7 @@ namespace SpaceInvaders.Game.Managers
 
             foreach (var bullet in playerBullets)
             {
-                foreach (var invader in invaders)
+                foreach (var invader in invaders.Where(i => i.IsActive))
                 {
                     if (bullet.Bounds.Intersects(invader.Bounds))
                     {
@@ -47,16 +46,16 @@ namespace SpaceInvaders.Game.Managers
             IEnumerable<Bullet> bullets, 
             Player player)
         {
-            if (!player.IsActive) return;
+            if (!player.IsActive || !player.IsVulnerable) return;
 
             var invaderBullets = bullets
-                .Where(b => b.IsActive && b.Type == BulletType.Invader);
+                .Where(b => b.IsActive && b.Type == BulletType.Invader)
+                .ToList();
 
             foreach (var bullet in invaderBullets)
             {
                 if (bullet.Bounds.Intersects(player.Bounds))
                 {
-                    // Hit detected!
                     OnCollision(bullet, player, CollisionType.InvaderBulletHitPlayer);
                     break;
                 }

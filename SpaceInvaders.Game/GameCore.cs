@@ -57,6 +57,7 @@ namespace SpaceInvaders.Game
             _invaderFormation.ReachedBottom += OnInvadersReachedBottom;
             _player.FireRequested += OnPlayerFireRequested;
             _collisionManager.CollisionDetected += OnCollisionDetected;
+            _player.DeathAnimationComplete += OnPlayerDeathAnimationComplete;
         }
 
         public void Update(float deltaTime)
@@ -84,20 +85,6 @@ namespace SpaceInvaders.Game
                 _state = GameState.Victory;
         }
 
-        private void OnCollisionDetected(object? sender, CollisionEventArgs e)
-        {
-            switch (e.Type)
-            {
-                case CollisionType.PlayerBulletHitInvader:
-                    HandlePlayerBulletHitInvader(e.Entity1 as Bullet, e.Entity2 as Invader);
-                    break;
-
-                case CollisionType.InvaderBulletHitPlayer:
-                    HandleInvaderBulletHitPlayer(e.Entity1 as Bullet);
-                    break;
-            }
-        }
-
         private void HandlePlayerBulletHitInvader(Bullet? bullet, Invader? invader)
         {
             if (bullet == null || invader == null) return;
@@ -112,12 +99,34 @@ namespace SpaceInvaders.Game
 
             _bulletManager.DestroyBullet(bullet);
 
-            _lives--;
+            if (_player.IsVulnerable)
+            {
+                _player.Hit();
+                _lives--;
+            }
 
             if (_lives <= 0)
                 _state = GameState.GameOver;
-            else // TODO: add player respawn/invincibility period
-                Console.WriteLine($"Player hit! Lives remaining: {_lives}");
+        }
+
+        private void OnCollisionDetected(object? sender, CollisionEventArgs e)
+        {
+            switch (e.Type)
+            {
+                case CollisionType.PlayerBulletHitInvader:
+                    HandlePlayerBulletHitInvader(e.Entity1 as Bullet, e.Entity2 as Invader);
+                    break;
+
+                case CollisionType.InvaderBulletHitPlayer:
+                    HandleInvaderBulletHitPlayer(e.Entity1 as Bullet);
+                    break;
+            }
+        }
+
+        private void OnPlayerDeathAnimationComplete(object? sender, EventArgs e)
+        {
+            if (_lives > 0)
+                _player.Respawn(GameConstants.PlayerStartPosition);
         }
 
         private void OnInvaderDestroyed(object? sender, Invader invader)
