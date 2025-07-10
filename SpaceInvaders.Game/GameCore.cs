@@ -18,10 +18,14 @@ namespace SpaceInvaders.Game
     {
         private readonly BulletManager _bulletManager;
         private readonly CollisionManager _collisionManager;
+        private readonly UFOManager _ufoManager;
+
         private readonly AnimationController _invaderAnimator;
         private readonly InvaderShootingController _invaderShootingController;
+
         private readonly InvaderFormation _invaderFormation;
         private readonly Player _player;
+
         private GameState _state = GameState.Playing;
         private int _score;
         private int _lives;
@@ -33,6 +37,7 @@ namespace SpaceInvaders.Game
         public int ActiveInvaders => _invaderFormation.ActiveCount;
         public int CurrentAnimationFrame => _invaderAnimator.CurrentFrame;
         public Player Player => _player;
+        public UFO? CurrentUFO => _ufoManager.CurrentUFO;
         public IEnumerable<Bullet> Bullets => _bulletManager.Bullets;
 
         public GameCore(IInputHandler inputHandler)
@@ -43,6 +48,7 @@ namespace SpaceInvaders.Game
             // Initialize game objects
             _bulletManager = new BulletManager();
             _collisionManager = new CollisionManager();
+            _ufoManager = new UFOManager();
             _invaderAnimator = new AnimationController(GameConstants.INVADER_ANIMATION_INTERVAL);
             _invaderShootingController = new InvaderShootingController(_bulletManager);
 
@@ -58,6 +64,7 @@ namespace SpaceInvaders.Game
             _player.FireRequested += OnPlayerFireRequested;
             _collisionManager.CollisionDetected += OnCollisionDetected;
             _player.DeathAnimationComplete += OnPlayerDeathAnimationComplete;
+            _ufoManager.UFODestroyed += OnUFODestroyed;
         }
 
         public void Update(float deltaTime)
@@ -69,6 +76,7 @@ namespace SpaceInvaders.Game
             _invaderAnimator.Update(deltaTime);
             _bulletManager.Update(deltaTime);
             _player.Update(deltaTime);
+            _ufoManager.Update(deltaTime);
 
             // Update invader shooting
             _invaderShootingController.Update(deltaTime, _invaderFormation.Invaders);
@@ -80,9 +88,26 @@ namespace SpaceInvaders.Game
                 _player
                 );
 
+            CheckUFOCollisions();
+
             // Check victory condition
             if (_invaderFormation.ActiveCount == 0)
                 _state = GameState.Victory;
+        }
+
+        private void CheckUFOCollisions()
+        {
+            if (_ufoManager.CurrentUFO == null) return;
+
+            foreach (var bullet in _bulletManager.PlayerBullets.ToList())
+            {
+                if (bullet.Bounds.Intersects(_ufoManager.CurrentUFO.Bounds))
+                {
+                    _bulletManager.DestroyBullet(bullet);
+                    _ufoManager.TryDestroyUFO(bullet.Position + bullet.Size / 2);
+                    break;
+                }
+            }
         }
 
         private void HandlePlayerBulletHitInvader(Bullet? bullet, Invader? invader)
@@ -148,7 +173,17 @@ namespace SpaceInvaders.Game
             var bulletPosition = new Vector2(bulletX, bulletY);
 
             if (_bulletManager.TryFirePlayerBulet(bulletPosition))
-                Console.WriteLine("Bullet fired!"); // could play sound effect here
+            {
+                // Track shot for UFO scoring
+                _ufoManager.OnPlayerShot();
+            }
+        }
+
+        private void OnUFODestroyed(object? sender, UFO ufo)
+        {
+            _score += ufo.PointValue;
+            // Could trigger special sound effect here
+            Console.WriteLine($"UFO destroyed! Points: {ufo.PointValue}");
         }
 
         public void Reset()
@@ -157,6 +192,7 @@ namespace SpaceInvaders.Game
             _invaderAnimator.Reset();
             _bulletManager.Clear();
             _invaderShootingController.Reset();
+            _ufoManager.Reset();
 
             _player.Position = GameConstants.PlayerStartPosition;
 

@@ -28,12 +28,19 @@ namespace SpaceInvaders.Game.Graphics
             _sprites[SpriteKey.InvaderMediumFrame2] = new BitmapSprite(SpriteData.MediumInvaderFrame2);
             _sprites[SpriteKey.InvaderLargeFrame1] = new BitmapSprite(SpriteData.LargeInvaderFrame1);
             _sprites[SpriteKey.InvaderLargeFrame2] = new BitmapSprite(SpriteData.LargeInvaderFrame2);
+
+            // Player sprites
             _sprites[SpriteKey.Player] = new BitmapSprite(SpriteData.Player);
             _sprites[SpriteKey.PlayerExplosion1] = new BitmapSprite(SpriteData.PlayerExplosionFrame1);
             _sprites[SpriteKey.PlayerExplosion2] = new BitmapSprite(SpriteData.PlayerExplosionFrame2);
+
+            // Bullet sprites
             _sprites[SpriteKey.PlayerBullet] = new BitmapSprite(SpriteData.PlayerBullet);
             _sprites[SpriteKey.InvaderBulletFrame1] = new BitmapSprite(SpriteData.InvaderBulletFrame1);
             _sprites[SpriteKey.InvaderBulletFrame2] = new BitmapSprite(SpriteData.InvaderBulletFrame2);
+
+            // UFO sprites
+            _sprites[SpriteKey.UFO] = new BitmapSprite(SpriteData.UFO);
         }
 
         public ISprite GetSprite(SpriteKey key)

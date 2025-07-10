@@ -70,9 +70,9 @@ namespace SpaceInvaders.Game.Managers
         private float CalculateShootInterval(int activeInvaderCount)
         {
             // Shoot more frequently as invaders are destroyed
-            // Start at 3 seconds, minimum 0.5 seconds
+            // Start at 4 seconds, minimum 1 seconds
             var ratio = (float)activeInvaderCount / GameConstants.TotalInvaders;
-            return Math.Max(0.5f, 3.0f * ratio);
+            return Math.Max(1.0f, 4.0f * ratio);
         }
 
         public void Reset()

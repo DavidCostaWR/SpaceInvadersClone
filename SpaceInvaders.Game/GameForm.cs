@@ -110,18 +110,24 @@ namespace SpaceInvaders.Game
                 _renderer.DrawSprite(sprite, invader.Position, Color.White);
             }
 
-            // Draw player
+            DrawUFO();
             DrawPlayer();
-
-            // Draw bullets
             DrawBullets();
 
             // Present to screen
             var targetRect = new Domain.Rectangle(0, 0, ClientSize.Width, ClientSize.Height);
             _renderer.Present(e.Graphics, targetRect);
 
-            // Draw HUD (temporary text rendering)
             DrawHUD(e.Graphics);
+        }
+
+        private void DrawUFO()
+        {
+            var ufo = _game.CurrentUFO;
+            if (ufo == null) return;
+
+            var sprite = SpriteRepository.Instance.GetSprite(SpriteKey.UFO);
+            _renderer.DrawSprite(sprite, ufo.Position, Color.Red);
         }
 
         private void DrawPlayer()

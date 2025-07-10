@@ -146,5 +146,17 @@ namespace SpaceInvaders.Game.Graphics
             "X X",
             " X "
         };
+
+        // UFO - 16x7 pixels
+        public static readonly string[] UFO =
+        {
+            "     XXXXXX     ",
+            "   XXXXXXXXXX   ",
+            "  XXXXXXXXXXXX  ",
+            " XX XX XX XX XX ",
+            "XXXXXXXXXXXXXXXX",
+            "  XXX  XX  XXX  ",
+            "   X        X   "
+        };
     }
 }

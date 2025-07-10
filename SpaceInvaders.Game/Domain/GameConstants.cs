@@ -44,6 +44,15 @@ namespace SpaceInvaders.Game.Domain
         public const float FORMATION_TOP_MARGIN = 16f;
         public const float FORMATION_BOTTOM_DANGER_ZONE = 32f;
 
+        // UFO
+        public const float UFO_SPEED = 50f;                    // Pixels per second
+        public const float UFO_Y_POSITION = 40f;               // Just below the score
+        public const float UFO_MIN_SPAWN_TIME = 20f;           // Minimum seconds between UFOs
+        public const float UFO_MAX_SPAWN_TIME = 40f;           // Maximum seconds between UFOs
+        public const int UFO_MIN_POINTS = 50;                  // Minimum UFO value
+        public const int UFO_MAX_POINTS = 300;                 // Maximum UFO value
+        public const int UFO_POINT_INCREMENT = 50;             // UFO points are multiples of 50
+
         // Movement
         public const float INVADER_BASE_SPEED = 10f;
         public const float INVADER_SPEED_INCREMENT_PER_KILL = 1.01f;
@@ -54,8 +63,8 @@ namespace SpaceInvaders.Game.Domain
         public static float FormationWidth => INVADER_COLUMNS * INVADER_HORIZONTAL_SPACING;
 
         // Projectiles
-        public const float BULLET_SPEED = 300f;             // Player bullet speed (pixels/second)
-        public const float INVADER_BULLET_SPEED = 150f;     // Invader bullets are slower
+        public const float BULLET_SPEED = 500f;             // Player bullet speed (pixels/second)
+        public const float INVADER_BULLET_SPEED = 100f;     // Invader bullets are slower
         public const int MAX_PLAYER_BULLETS = 1;            // Original game allowed only 1
         public const int MAX_INVADER_BULLETS = 3;           // Maximum simultaneous invader shots
 
