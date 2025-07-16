@@ -1,0 +1,672 @@
+// FOLDER: Managers
+// ========================
+
+
+// FILE: BulletManager.cs
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Entities;
+
+namespace SpaceInvaders.Game.Managers
+{
+    /// <summary>
+    /// Manages all projectiles in the game.
+    /// Enforces bullet limits and handles lifecycle.
+    /// </summary>
+    public class BulletManager
+    {
+        private readonly List<Bullet> _bullets;
+        private readonly int _maxPlayerBullets;
+
+        public IEnumerable<Bullet> Bullets => _bullets.Where(b => b.IsActive);
+        public IEnumerable<Bullet> PlayerBullets =>
+            _bullets.Where(b => b.IsActive && b.Type == BulletType.Player);
+        public IEnumerable<Bullet> InvaderBullets =>
+            _bullets.Where(b => b.IsActive && b.Type == BulletType.Invader);
+
+        public int ActivePlayerBulletCount =>
+            _bullets.Count(b => b.IsActive && b.Type == BulletType.Player);
+
+        public BulletManager(int maxPlayerBullets = GameConstants.MAX_PLAYER_BULLETS)
+        {
+            _bullets = new List<Bullet>();
+            _maxPlayerBullets = maxPlayerBullets;
+        }
+
+        public bool TryFirePlayerBullet(Vector2 position)
+        {
+            // Enforce bullet limit
+            if (ActivePlayerBulletCount >= _maxPlayerBullets)
+                return false;
+
+            var bullet = new Bullet(
+                position,
+                GameConstants.BULLET_SPEED,
+                BulletType.Player
+                );
+
+            _bullets.Add(bullet);
+            return true;
+        }
+
+        public void FireInvaderBullet(Vector2 position)
+        {
+            var bullet = new Bullet(
+                position,
+                -GameConstants.INVADER_BULLET_SPEED,
+                BulletType.Invader
+                );
+
+            _bullets.Add(bullet);
+        }
+
+        public void Update(float deltaTime)
+        {
+            // Update all active bullets
+            foreach (var bullet in _bullets.Where(b => b.IsActive))
+                bullet.Update(deltaTime);
+
+            // Clean up inactive bullets periodically
+            if (_bullets.Count > 50) // Arbitrary threshold
+                RemoveInactiveBullets();
+        }
+
+        public void DestroyBullet(Bullet bullet) => bullet.Destroy();
+
+        public void Clear() => _bullets.Clear();
+
+        private void RemoveInactiveBullets() => _bullets.RemoveAll(b => !b.IsActive);
+    }
+}
+
+
+// ========================
+
+
+// FILE: CollisionManager.cs
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Entities;
+
+namespace SpaceInvaders.Game.Managers
+{
+    /// <summary>
+    /// Handles collision detection between game entities.
+    /// Centralized collision logic for maintainability
+    /// </summary>
+    public class CollisionManager
+    {
+        public event EventHandler<CollisionEventArgs>? CollisionDetected;
+
+        public void CheckCollisions(
+            IEnumerable<Bullet> bullets,
+            IEnumerable<Invader> invaders,
+            Player player)
+        {
+            CheckPlayerBulletsVsInvaders(bullets, invaders);
+            CheckInvaderBulletsVsPlayer(bullets, player);
+        }
+
+        private void CheckPlayerBulletsVsInvaders(
+            IEnumerable<Bullet> bullets, 
+            IEnumerable<Invader> invaders)
+        {
+            var playerBullets = bullets
+                .Where(b => b.IsActive && b.Type == BulletType.Player)
+                .ToList();
+
+            foreach (var bullet in playerBullets)
+            {
+                foreach (var invader in invaders.Where(i => i.IsActive))
+                {
+                    if (bullet.Bounds.Intersects(invader.Bounds))
+                    {
+                        // Hit detected!
+                        OnCollision(bullet, invader, CollisionType.PlayerBulletHitInvader);
+                        break;
+                    }
+                }
+            }
+        }
+
+        private void CheckInvaderBulletsVsPlayer(
+            IEnumerable<Bullet> bullets, 
+            Player player)
+        {
+            if (!player.IsActive || !player.IsVulnerable) return;
+
+            var invaderBullets = bullets
+                .Where(b => b.IsActive && b.Type == BulletType.Invader)
+                .ToList();
+
+            foreach (var bullet in invaderBullets)
+            {
+                if (bullet.Bounds.Intersects(player.Bounds))
+                {
+                    OnCollision(bullet, player, CollisionType.InvaderBulletHitPlayer);
+                    break;
+                }
+            }
+        }
+
+        private void OnCollision(Entity entity1, Entity entity2, CollisionType type)
+        {
+            var args = new CollisionEventArgs(entity1, entity2, type);
+            CollisionDetected?.Invoke(this, args);
+        }
+    }
+
+    public class CollisionEventArgs : EventArgs
+    {
+        public Entity Entity1 { get; }
+        public Entity Entity2 { get; }
+        public CollisionType Type { get; }
+
+        public CollisionEventArgs(Entity entity1, Entity entity2, CollisionType type)
+        {
+            Entity1 = entity1;
+            Entity2 = entity2;
+            Type = type;
+        }
+    }
+
+    public enum CollisionType
+    {
+        PlayerBulletHitInvader,
+        InvaderBulletHitPlayer,
+        InvaderReachedPlayer
+    }
+}
+
+
+// ========================
+
+
+// FILE: InvaderFormation.cs
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Entities;
+
+namespace SpaceInvaders.Game.Managers
+{
+    /// <summary>
+    /// Manages the formation and movement of all invaders.
+    /// Implements the classic Space Invaders movement pattern.
+    /// </summary>
+    public class InvaderFormation
+    {
+        private readonly Invader[,] _grid;
+        private readonly int _rows;
+        private readonly int _columns;
+        private Vector2 _formationPosition;
+        private float _horizontalSpeed;
+        private int _direction = 1; // 1 for right, -1 for left
+        private float _dropDistance;
+        private int _activeCount;
+
+        private int _leftmostColumn;
+        private int _rightmostColumn;
+        private int _bottomRow;
+        private int _topRow;
+
+        // Events for game integration
+        public event EventHandler<Invader>? InvaderDestroyed;
+        public event EventHandler? ReachedBottom;
+
+        public int ActiveCount => _activeCount;
+        public IEnumerable<Invader> Invaders => GetActiveInvaders();
+
+        public InvaderFormation(
+            int rows = GameConstants.INVADER_ROWS,
+            int columns = GameConstants.INVADER_COLUMNS)
+        {
+            _rows = rows;
+            _columns = columns;
+            _grid = new Invader[rows, columns];
+            _horizontalSpeed = GameConstants.INVADER_BASE_SPEED;
+            _dropDistance = GameConstants.INVADER_DROP_DISTANCE;
+
+            InitializeFormation();
+        }
+
+        private void InitializeFormation()
+        {
+            var formationWidth = CalculateFormationWidth();
+
+            // Center the formation
+            _formationPosition = new Vector2(
+                (GameConstants.GAME_WIDTH - formationWidth) / 2f,
+                GameConstants.FORMATION_TOP_MARGIN
+            );
+
+            InitializeInvaders();
+            UpdateActiveBounds();
+        }
+
+        private float CalculateFormationWidth()
+        {
+            var spacing = GameConstants.INVADER_HORIZONTAL_SPACING;
+            var largestInvaderWidth = Invader.GetSizeForType(InvaderType.Large).X;
+            return (_columns - 1) * spacing + largestInvaderWidth;
+        }
+
+        private void InitializeInvaders()
+        {
+            _activeCount = 0;
+
+            for (int row = 0; row < _rows; row++)
+            {
+                var invaderType = GetInvaderTypeForRow(row);
+
+                for (int col = 0; col < _columns; col++)
+                {
+                    var position = GetInvaderPosition(row, col);
+                    _grid[row, col] = new Invader(position, invaderType);
+                    _activeCount++;
+                }
+            }
+        }
+
+        private void UpdateActiveBounds()
+        {
+            _leftmostColumn = _columns;
+            _rightmostColumn = -1;
+            _topRow = _rows;
+            _bottomRow = -1;
+
+            for (int row = 0; row < _rows; row++)
+            {
+                for (int col = 0; col < _columns; col++)
+                {
+                    if (_grid[row, col]?.IsActive == true)
+                    {
+                        _leftmostColumn = Math.Min(_leftmostColumn, col);
+                        _rightmostColumn = Math.Max(_rightmostColumn, col);
+                        _topRow = Math.Min(_topRow, row);
+                        _bottomRow = Math.Max(_bottomRow, row);
+                    }
+                }
+            }
+        }
+
+        private InvaderType GetInvaderTypeForRow(int row)
+        {
+            return row switch
+            {
+                0 => InvaderType.Small,
+                1 => InvaderType.Small,
+                2 => InvaderType.Medium,
+                3 => InvaderType.Medium,
+                4 => InvaderType.Large,
+                _ => InvaderType.Large
+            };
+        }
+
+        private Vector2 GetInvaderPosition(int row, int col) => _formationPosition + new Vector2(
+                col * GameConstants.INVADER_HORIZONTAL_SPACING,
+                row * GameConstants.INVADER_VERTICAL_SPACING
+            );
+
+        public void Update(float deltaTime)
+        {
+            if (_activeCount == 0) return;
+
+            var movement = new Vector2(_direction * _horizontalSpeed * deltaTime, 0);
+            bool needsToDrop = CheckBoundaryCollision(movement);
+
+            if (needsToDrop)
+            {
+                DropDown();
+                ReverseDirection();
+                IncreaseSpeed();
+            }
+            else
+            {
+                MoveHorizontally(movement);
+            }
+        }
+
+        private bool CheckBoundaryCollision(Vector2 movement)
+        {
+            if (_direction > 0) // Moving right
+            {
+                // Check righrmost invader in each row
+                for (int row = _topRow; row <= _bottomRow; row++)
+                {
+                    var invader = _grid[row, _rightmostColumn];
+                    if (invader?.IsActive == true)
+                    {
+                        var futurePosition = invader.Position + movement;
+                        if (futurePosition.X + invader.Size.X > GameConstants.GAME_WIDTH)
+                            return true; // Collision with right boundary
+                    }
+                }
+            }
+            else // Moving left
+            {
+                // Check leftmost invader in each row
+                for (int row = _topRow; row <= _bottomRow; row++)
+                {
+                    var invader = _grid[row, _leftmostColumn];
+                    if (invader?.IsActive == true)
+                    {
+                        var futurePosition = invader.Position + movement;
+                        if (futurePosition.X < 0)
+                            return true; // Collision with left boundary
+                    }
+                }
+            }
+            return false;
+        }
+
+        private void MoveHorizontally(Vector2 movement)
+        {
+            _formationPosition += movement;
+            foreach (var invader in GetActiveInvaders())
+            {
+                invader.Move(movement);
+            }
+        }
+
+        private void DropDown()
+        {
+            var dropMovement = Vector2.Down * _dropDistance;
+            _formationPosition += dropMovement;
+
+            bool reachedBottom = false;
+
+            foreach (var invader in GetActiveInvaders())
+            {
+                invader.Move(dropMovement);
+
+                // Check only the bottom row invaders
+                if (_bottomRow >= 0 && _bottomRow < _rows)
+                {
+                    for (int col = _leftmostColumn; col <= _rightmostColumn; col++)
+                    {
+                        var bottomInvader = _grid[_bottomRow, col];
+                        if (bottomInvader?.IsActive == true)
+                        {
+                            var bottomEdge = bottomInvader.Position.Y + bottomInvader.Size.Y;
+                            var dangerLine = GameConstants.GAME_HEIGHT - GameConstants.FORMATION_BOTTOM_DANGER_ZONE;
+
+                            if (bottomEdge >= dangerLine)
+                            {
+                                reachedBottom = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (reachedBottom)
+                ReachedBottom?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void ReverseDirection() => _direction *= -1;
+
+        private void IncreaseSpeed()
+        {
+            var destroyedCount = GameConstants.TotalInvaders - _activeCount;
+            _horizontalSpeed = GameConstants.INVADER_BASE_SPEED
+                               + (destroyedCount * GameConstants.INVADER_SPEED_INCREMENT_PER_KILL);
+        }
+
+        private IEnumerable<Invader> GetActiveInvaders()
+        {
+            for (int row = 0; row < _rows; row++)
+            {
+                for (int col = 0; col < _columns; col++)
+                {
+                    var invader = _grid[row, col];
+                    if (invader != null && invader.IsActive)
+                        yield return invader;
+                }
+            }
+        }
+
+        public void DestroyInvaderAt(Vector2 position)
+        {
+            foreach (var invader in GetActiveInvaders())
+            {
+                if (invader.Bounds.Contains(position))
+                {
+                    invader.Destroy();
+                    _activeCount--;
+                    UpdateActiveBounds();
+                    InvaderDestroyed?.Invoke(this, invader);
+                    IncreaseSpeed();
+                    break;
+                }
+            }
+        }
+
+        public void Reset()
+        {
+            // Clear existing invaders
+            for (int row = 0; row < _rows; row++)
+            {
+                for (int col = 0; col < _columns; col++)
+                {
+                    _grid[row, col] = null;
+                }
+            }
+
+            // Reset speed and direction
+            _horizontalSpeed = GameConstants.INVADER_BASE_SPEED;
+            _direction = 1;
+
+            // Reinitialize
+            InitializeFormation();
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: InvaderShootingController.cs
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Entities;
+
+namespace SpaceInvaders.Game.Managers
+{
+    /// <summary>
+    /// Controls when and which invaders shoot.
+    /// Implements classic Space Invaders shooting pattern
+    /// </summary>
+    public class InvaderShootingController
+    {
+        private readonly Random _random;
+        private readonly BulletManager _bulletManager;
+        private float _shootTimer;
+        private float _shootInterval;
+
+        public InvaderShootingController(BulletManager bulletManager)
+        {
+            _bulletManager = bulletManager ?? throw new ArgumentNullException(nameof(bulletManager));
+            _random = new Random();
+            _shootInterval = CalculateShootInterval(GameConstants.TotalInvaders);
+            _shootTimer = _shootInterval;
+        }
+
+        public void Update(float deltaTime, IEnumerable<Invader> invaders)
+        {
+            _shootTimer -= deltaTime;
+
+            if (_shootTimer <= 0)
+            {
+                TryShoot(invaders);
+
+                // Reset timer with some randomness
+                var activeCount = invaders.Count();
+                _shootInterval = CalculateShootInterval(activeCount);
+                _shootTimer = _shootInterval * (0.5f + (float)_random.NextDouble());
+            }
+        }
+
+        private void TryShoot(IEnumerable<Invader> invaders)
+        {
+            // Get bottom-most invader in each column
+            var shootCandidates = GetBottomInvaders(invaders).ToList();
+
+            if (shootCandidates.Count == 0) return;
+
+            // Check current bullet count
+            var currentBullets = _bulletManager.InvaderBullets.Count();
+            if (currentBullets >= GameConstants.MAX_INVADER_BULLETS) return;
+
+            // Select random invader to shoot
+            var shooter = shootCandidates[_random.Next(shootCandidates.Count)];
+
+            // Fire from bottom center of invader
+            var bulletPosition = new Vector2(
+                shooter.Position.X + shooter.Size.X / 2f - 1.5f,    // Center 3-pixel bullet
+                shooter.Position.Y
+                );
+
+            _bulletManager.FireInvaderBullet(bulletPosition);
+        }
+
+        private IEnumerable<Invader> GetBottomInvaders(IEnumerable<Invader> invaders)
+        {
+            return invaders
+                .GroupBy(i => Math.Round(i.Position.X / GameConstants.INVADER_HORIZONTAL_SPACING))
+                .Select(group => group.OrderByDescending(i => i.Position.Y).First());
+        }
+
+        private float CalculateShootInterval(int activeInvaderCount)
+        {
+            // Shoot more frequently as invaders are destroyed
+            // Start at 4 seconds, minimum 1 seconds
+            var ratio = (float)activeInvaderCount / GameConstants.TotalInvaders;
+            return Math.Max(1.0f, 4.0f * ratio);
+        }
+
+        public void Reset()
+        {
+            _shootInterval = CalculateShootInterval(GameConstants.TotalInvaders);
+            _shootTimer = _shootInterval;
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: UFOManager.cs
+
+using SpaceInvaders.Game.Entities;
+using SpaceInvaders.Game.Domain;
+
+namespace SpaceInvaders.Game.Managers
+{
+    /// <summary>
+    /// Manages UFO spawning and lifecycle.
+    /// Implements the mysterious scoring algorithm
+    /// </summary>
+    public class UFOManager
+    {
+        private readonly Random _random;
+        private UFO? _currentUFO;
+        private float _spawnerTimer;
+        private float _nextSpawnTime;
+        private int _shotsFiredSinceLastUFO;
+
+        public UFO? CurrentUFO => _currentUFO?.IsActive == true ? _currentUFO : null;
+        public event EventHandler<UFO>? UFODestroyed;
+
+        public UFOManager()
+        {
+            _random = new Random();
+            ResetSpawnTimer();
+            _shotsFiredSinceLastUFO = 0;
+        }
+
+        public void Update(float deltaTime)
+        {
+            // Update current UFO
+            if (_currentUFO?.IsActive == true)
+            {
+                _currentUFO.Update(deltaTime);
+
+                if (!_currentUFO.IsActive)
+                    _currentUFO = null;
+            }
+
+            // Update spawn timer
+            if (_currentUFO == null)
+            {
+                _spawnerTimer += deltaTime;
+
+                if (_spawnerTimer >= _nextSpawnTime)
+                    SpawnUFO();
+            }
+        }
+
+        public void OnPlayerShot() => _shotsFiredSinceLastUFO++;
+
+        private void SpawnUFO()
+        {
+            // Random direction
+            bool movingRight = _random.Next(2) == 0;
+
+            int pointValue = CalculateUFOValue();
+
+            _currentUFO = new UFO(movingRight, pointValue);
+            ResetSpawnTimer();
+        }
+
+        private int CalculateUFOValue()
+        {
+            // Classic Space Invaders UFO scoring:
+            // Based on number of shots fired by player
+            // Every 15th shot = 300 points, otherwise random
+
+            if (_shotsFiredSinceLastUFO > 0 && _shotsFiredSinceLastUFO % 15 == 0)
+                return 300;
+
+            // Random value: 50, 100, 150
+            int[] possibleValues = { 50, 100, 150 };
+            return possibleValues[_random.Next(possibleValues.Length)];
+        }
+
+        public bool TryDestroyUFO(Vector2 hitPoint)
+        {
+            if (_currentUFO?.IsActive == true && _currentUFO.Bounds.Contains(hitPoint))
+            {
+                var points = _currentUFO.PointValue;
+                _currentUFO.Destroy();
+                UFODestroyed?.Invoke(this, _currentUFO);
+                _currentUFO = null;
+                _shotsFiredSinceLastUFO = 0;
+                return true;
+            }
+            return false;
+        }
+
+        private void ResetSpawnTimer()
+        {
+            _spawnerTimer = 0;
+            _nextSpawnTime = _random.Next(
+                (int)GameConstants.UFO_MIN_SPAWN_TIME,
+                (int)GameConstants.UFO_MAX_SPAWN_TIME
+             );
+        }
+
+        public void Reset()
+        {
+            _currentUFO = null;
+            _shotsFiredSinceLastUFO = 0;
+            ResetSpawnTimer();
+        }
+    }
+}
+
+
+// ========================
+

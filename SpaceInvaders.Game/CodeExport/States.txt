@@ -1,0 +1,796 @@
+// FOLDER: States
+// ========================
+
+
+// FILE: GameOverState.cs
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Graphics;
+
+namespace SpaceInvaders.Game.States
+{
+    /// <summary>
+    /// Game over screen
+    /// </summary>
+    public class GameOverState : IGameState
+    {
+        private readonly Func<int> _getScore;
+        private int _finalScore;
+        private float _timer;
+
+        public GameOverState(Func<int> getScore)
+        {
+            _getScore = getScore;
+        }
+
+        public void Enter(StateTransitionContext? context = null)
+        {
+            _timer = 0;
+            _finalScore = _getScore();
+        }
+
+        public void Exit() { }
+
+        public StateTransitionRequest? Update(float deltaTime)
+        {
+            _timer += deltaTime;
+            return null;
+        }
+
+        public void Draw(Renderer renderer)
+        {
+            renderer.Clear(Color.Black);
+
+            // Game Over text with animation
+            var gameOverY = 50f + (float)Math.Sin(_timer * 2) * 5;
+            renderer.DrawTextCentered("GAME OVER", gameOverY, Color.Red, 2);
+
+            // Final score
+            renderer.DrawTextCentered($"FINAL SCORE: {_finalScore}", 100, Color.White, 1);
+
+            // Earth invaded message
+            renderer.DrawTextCentered("THE INVADERS HAVE", 130, Color.Green, 1);
+            renderer.DrawTextCentered("REACHED EARTH", 145, Color.Green, 1);
+
+            // Continue prompt
+            if ((int)(_timer * 2) % 2 == 0)
+            {
+                renderer.DrawTextCentered("PRESS SPACE TO CONTINUE", 200, Color.Cyan, 1);
+            }
+        }
+
+        private void DrawText(Renderer renderer, string text, Vector2 position, Color color, int scale)
+        {
+            renderer.DrawText(text, position, color, scale);
+        }
+
+        public StateTransitionRequest? HandleInput(Keys key, bool isKeyDown)
+        {
+            if (!isKeyDown && key == Keys.Space && _timer > 2.0f)   // Prevent accidental skip
+            {
+                return new StateTransitionRequest
+                {
+                    Transition = StateTransition.ToMenu
+                };
+            }
+            return null;
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: GameStateManager.cs
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Entities;
+using SpaceInvaders.Game.Graphics;
+using Rectangle = SpaceInvaders.Game.Domain.Rectangle;
+
+namespace SpaceInvaders.Game.States
+{
+    /// <summary>
+    /// Manages game state transitions and updates.
+    /// </summary>
+    public class GameStateManager
+    {
+        private readonly Dictionary<Type, IGameState> _states;
+        private readonly Renderer _renderer;
+        private readonly GameCore _gameCore;
+        private IGameState? _currentState;
+
+        private readonly Dictionary<StateTransition, Type> _transitionMap = new()
+        {
+            { StateTransition.ToMenu, typeof(StartMenuState) },
+            { StateTransition.ToPlaying, typeof(PlayingState) },
+            { StateTransition.ToPause, typeof(PauseMenuState) },
+            { StateTransition.ToGameOver, typeof(GameOverState) },
+            { StateTransition.ToVictory, typeof(VictoryState) }
+        };
+
+        public IGameState? CurrentState => _currentState;
+
+        public GameStateManager(Renderer renderer, GameCore gameCore)
+        {
+            _states = new Dictionary<Type, IGameState>();
+            _renderer = renderer;
+            _gameCore = gameCore;
+        }
+
+        public void RegisterState<T>(T state) where T : IGameState
+        {
+            _states[typeof(T)] = state;
+        }
+
+        public void Update(float deltaTime)
+        {
+            var request = _currentState?.Update(deltaTime);
+            HandleTransitionRequest(request);
+        }
+
+        public void Draw()
+        {
+            _currentState?.Draw(_renderer);
+
+            // Handle game drawing for playing states
+            if (_currentState is PlayingState or PauseMenuState)
+            {
+                DrawGameElements();
+
+                if (_currentState is PlayingState)
+                {
+                    DrawHUD();
+                }
+
+                if (_currentState is PauseMenuState)
+                {
+                    DrawPauseOverlay();
+                }
+            }
+        }
+
+        private void DrawGameElements()
+        {
+            foreach (var invader in _gameCore.Invaders)
+            {
+                var sprite = SpriteRepository.Instance.GetInvaderSprite(
+                    invader.Type,
+                    _gameCore.CurrentAnimationFrame
+                    );
+                _renderer.DrawSprite(sprite, invader.Position, Color.White);
+            }
+
+            DrawUFO();
+            DrawPlayer();
+            DrawBullets();
+        }
+
+        private void DrawPauseOverlay()
+        {
+            // Draw semi-transparent overlay
+            var overlayRect = new Rectangle(0, 0, GameConstants.GAME_WIDTH, GameConstants.GAME_HEIGHT);
+            _renderer.FillRectangle(overlayRect, Color.FromArgb(128, 0, 0, 0));
+        }
+
+        private void DrawUFO()
+        {
+            var ufo = _gameCore.CurrentUFO;
+            if (ufo == null) return;
+
+            var sprite = SpriteRepository.Instance.GetSprite(SpriteKey.UFO);
+            _renderer.DrawSprite(sprite, ufo.Position, Color.Red);
+        }
+
+        private void DrawPlayer()
+        {
+            var player = _gameCore.Player;
+
+            if (!player.ShouldRender) return;
+
+            ISprite sprite;
+            Color color = Color.White;
+
+            if (player.State == PlayerState.Dying)
+            {
+                // Use explosion sprite based on animation frame
+                var spriteKey = player.DeathAnimationFrame == 0
+                    ? SpriteKey.PlayerExplosion1
+                    : SpriteKey.PlayerExplosion2;
+                sprite = SpriteRepository.Instance.GetSprite(spriteKey);
+            }
+            else
+            {
+                sprite = SpriteRepository.Instance.GetSprite(SpriteKey.Player);
+
+                if (player.State == PlayerState.Respawning)
+                    color = Color.Cyan;
+            }
+            _renderer.DrawSprite(sprite, player.Position, color);
+        }
+
+        private void DrawBullets()
+        {
+            foreach (var bullet in _gameCore.Bullets)
+            {
+                ISprite bulletSprite;
+                Color bulletColor = Color.White;
+
+                if (bullet.Type == BulletType.Player)
+                {
+                    bulletSprite = SpriteRepository.Instance.GetSprite(SpriteKey.PlayerBullet);
+                }
+                else
+                {
+                    var spriteKey = _gameCore.CurrentAnimationFrame == 0
+                        ? SpriteKey.InvaderBulletFrame1
+                        : SpriteKey.InvaderBulletFrame2;
+                    bulletSprite = SpriteRepository.Instance.GetSprite(spriteKey);
+                }
+
+                _renderer.DrawSprite(bulletSprite, bullet.Position, bulletColor);
+            }
+        }
+
+        private void DrawHUD()
+        {
+            _renderer.DrawText($"Score: {_gameCore.Score}", new Vector2(10, 10), Color.White);
+            _renderer.DrawText($"Lives: {_gameCore.Lives}", new Vector2(170, 10), Color.White);
+        }
+
+
+        public void HandleInput(Keys key, bool isKeyDown)
+        {
+            var request = _currentState?.HandleInput(key, isKeyDown);
+            HandleTransitionRequest(request);
+        }
+
+        private void HandleTransitionRequest(StateTransitionRequest? request)
+        {
+            if (request == null || request.Transition == StateTransition.None) 
+                return;
+
+            if (_transitionMap.TryGetValue(request.Transition, out var stateType))
+            {
+                if (_states.TryGetValue(stateType, out var newState))
+                {
+                    _currentState?.Exit();
+
+                    var context = new StateTransitionContext
+                    {
+                        ResetGame = request.ResetGame
+                    };
+
+                    _currentState = newState;
+                    _currentState.Enter(context);
+                }
+            }
+        }
+
+        public void StartWithState<T>() where T : IGameState
+        {
+            if (_states.TryGetValue(typeof(T), out var state))
+            {
+                _currentState = state;
+                _currentState.Enter();
+            }
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: IGameState.cs
+
+using SpaceInvaders.Game.Graphics;
+
+namespace SpaceInvaders.Game.States
+{
+    /// <summary>
+    /// Interface for game states
+    /// </summary>
+    public interface IGameState
+    {
+        void Enter(StateTransitionContext? context = null);
+        void Exit();
+        StateTransitionRequest? Update(float deltaTime);
+        void Draw(Renderer renderer);
+        StateTransitionRequest? HandleInput(Keys key, bool isKeyDown);
+    }
+
+    public class StateTransitionRequest
+    {
+        public StateTransition Transition { get; set; }
+        public bool ResetGame { get; set; }
+    }
+    public class StateTransitionContext
+    {
+        public bool ResetGame { get; set; }
+    }
+
+    public enum StateTransition
+    {
+        None,
+        ToMenu,
+        ToPlaying,
+        ToPause,
+        ToGameOver,
+        ToVictory
+    }
+}
+
+
+// ========================
+
+
+// FILE: PauseMenuState.cs
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Graphics;
+
+namespace SpaceInvaders.Game.States
+{
+    /// <summary>
+    /// Pause menu overlay
+    /// </summary>
+    public class PauseMenuState : IGameState
+    {
+        private int _selectedOption;
+        private readonly string[] _options = { "RESUME", "RESTART", "QUIT TO MENU" };
+
+        public PauseMenuState()
+        {
+        }
+
+        public void Enter(StateTransitionContext? context = null)
+        {
+            _selectedOption = 0;
+        }
+
+        public void Exit() { }
+
+        public StateTransitionRequest? Update(float deltaTime) { return null; }
+
+        public void Draw(Renderer renderer)
+        {
+            // Draw the game in backgoround (frozen)
+            // This would be handled by preserving the last frame
+
+            // Draw semi-transparent overlay
+            DrawOverlay(renderer);
+
+            // Draw menu
+            renderer.DrawTextCentered("PAUSED", 50, Color.Yellow, 2);
+
+            var startY = 100f;
+            for (int i = 0; i< _options.Length; i++)
+            {
+                var color = i == _selectedOption ? Color.Cyan : Color.White;
+                var prefix = i == _selectedOption ? "> " : "  ";    
+                var y = startY + (i * 25);
+
+                renderer.DrawTextCentered(prefix + _options[i], y, color, 1);
+            }
+
+            // Instructions at bottom
+            renderer.DrawTextCentered("USE ARROW KEYS TO SELECT", 200, Color.Yellow, 1);
+            renderer.DrawTextCentered("SPACE TO CONFIRM", 215, Color.Yellow, 1);
+        }
+
+        private void DrawOverlay(Renderer renderer)
+        {
+            // Draw semi-transparent black overlay
+            // To implement a FillRectangle method in Renderer
+            var rect = new Domain.Rectangle(0, 0, GameConstants.GAME_WIDTH, GameConstants.GAME_HEIGHT);
+        }
+
+        private void DrawText(Renderer renderer, string text, Vector2 position, Color color, int scale)
+        {
+            renderer.DrawText(text, position, color, scale);
+        }
+
+        public StateTransitionRequest? HandleInput(Keys key, bool isKeyDown)
+        {
+            if (isKeyDown) return null;
+
+            switch (key)
+            {
+                case Keys.Up:
+                    _selectedOption = (_selectedOption - 1 + _options.Length) % _options.Length;
+                    break;
+                case Keys.Down:
+                    _selectedOption = (_selectedOption + 1) % _options.Length;
+                    break;
+                case Keys.Space:
+                case Keys.Enter:
+                    return ExecuteOption();
+                case Keys.Escape:
+                    return new StateTransitionRequest
+                    {
+                        Transition = StateTransition.ToPlaying
+                    };
+            }
+            return null;
+        }
+
+        private StateTransitionRequest? ExecuteOption()
+        {
+            return _selectedOption switch
+            {
+                0 => new StateTransitionRequest
+                {
+                    Transition = StateTransition.ToPlaying
+                },
+                1 => new StateTransitionRequest
+                {
+                    Transition = StateTransition.ToPlaying,
+                    ResetGame = true
+                },
+                2 => new StateTransitionRequest
+                {
+                    Transition = StateTransition.ToMenu
+                },
+                _ => null
+            };
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: PlayingState.cs
+
+using SpaceInvaders.Game.Graphics;
+using SpaceInvaders.Game.Input;
+
+namespace SpaceInvaders.Game.States
+{
+    /// <summary>
+    /// The main game state
+    /// </summary>
+    public class PlayingState : IGameState
+    {
+        private readonly GameCore _gameCore;
+        private readonly IInputHandler _inputHandler;
+        private bool _isPaused;
+        private bool _justEntered;
+
+        public PlayingState(GameCore gameCore, IInputHandler inputHandler)
+        {
+            _gameCore = gameCore;
+            _inputHandler = inputHandler;
+        }
+
+        public void Enter(StateTransitionContext? context = null)
+        {
+            _isPaused = false;
+            _justEntered = true;
+
+            if (context?.ResetGame == true)
+            {
+                _gameCore.Reset();
+            }
+        }
+
+        public void Exit() { }
+
+        public StateTransitionRequest Update(float deltaTime)
+        {
+            if (_isPaused) return null;
+
+            _gameCore.Update(deltaTime);
+
+            if (_justEntered)
+            {
+                _justEntered = false;
+                return null;
+            }
+
+            // Check for game over or victory conditions
+            return _gameCore.State switch
+            {
+                GameState.GameOver => new StateTransitionRequest
+                {
+                    Transition = StateTransition.ToGameOver
+                },
+                GameState.Victory => new StateTransitionRequest
+                {
+                    Transition = StateTransition.ToVictory
+                },
+                _ => null
+            };
+        }
+
+        public void Draw(Renderer renderer)
+        {
+            // The actual game drawing is handled by GameForm
+            // This is just for state management
+        }
+
+        public StateTransitionRequest HandleInput(Keys key, bool isKeyDown)
+        {
+            // Handle pause
+            if (!isKeyDown && key == Keys.Escape)
+            {
+                return new StateTransitionRequest
+                {
+                    Transition = StateTransition.ToPause
+                };
+            }
+            return null;
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: StartMenuState.cs
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Entities;
+using SpaceInvaders.Game.Graphics;
+
+namespace SpaceInvaders.Game.States
+{
+    /// <summary>
+    /// The classic Space Invaders start screen showing point values
+    /// </summary>
+    public class StartMenuState : IGameState
+    {
+        private readonly Action _onStartGame;
+        private float _blinkTimer;
+        private bool _showStartText;
+
+        // Animation for demo invaders
+        private readonly AnimationController _demoAnimator;
+
+        public StartMenuState(Action onStartGame)
+        {
+            _onStartGame = onStartGame;
+            _demoAnimator = new AnimationController(0.5f);
+        }
+
+        public void Enter(StateTransitionContext? context = null)
+        {
+            _blinkTimer = 0;
+            _showStartText = true;
+            _demoAnimator.Reset();
+        }
+
+        public void Exit() { }
+
+        public StateTransitionRequest? Update(float deltaTime)
+        {
+            // Blink "PRESS SPACE TO START"
+            _blinkTimer += deltaTime;
+            if (_blinkTimer >= 0.5f)
+            {
+                _blinkTimer = 0;
+                _showStartText = !_showStartText;
+            }
+
+            _demoAnimator.Update(deltaTime);
+
+            return null;
+        }
+
+        public void Draw(Renderer renderer)
+        {
+            renderer.Clear(Color.Black);
+
+            // Title
+            renderer.DrawTextCentered("SPACE", 30, Color.White, 3);
+            renderer.DrawTextCentered("INVADERS", 50, Color.White, 3);
+
+            // Score advance table
+            renderer.DrawTextCentered("SCORE ADVANCE TABLE", 90, Color.White, 1);
+
+            // Draw point values with invader sprites
+            DrawScoreTable(renderer);
+
+            // Start prompt
+            if (_showStartText)
+            {
+                renderer.DrawTextCentered("PRESS SPACE TO START", 200, Color.Cyan, 1);
+            }
+
+            // Credits
+            renderer.DrawTextCentered("INSERT COIN", 230, Color.Red, 1);
+        }
+
+        private void DrawScoreTable(Renderer renderer)
+        {
+            var tableWidth = 100f; // Approximate width of the table
+            var tableX = (GameConstants.GAME_WIDTH - tableWidth) / 2;
+
+            DrawInvaderPointValue(renderer, InvaderType.Small, new Vector2(tableX, 110), "30");
+            DrawInvaderPointValue(renderer, InvaderType.Medium, new Vector2(tableX, 130), "20");
+            DrawInvaderPointValue(renderer, InvaderType.Large, new Vector2(tableX, 150), "10");
+            DrawUFOPointValue(renderer, new Vector2(tableX, 170), "???");
+        }
+
+        private void DrawInvaderPointValue(Renderer renderer, InvaderType type, Vector2 position, string points)
+        {
+            var sprite = SpriteRepository.Instance.GetInvaderSprite(type, _demoAnimator.CurrentFrame);
+            renderer.DrawSprite(sprite, position, Color.White);
+
+            var textX = position.X + 20;
+            DrawText(renderer, $"= {points} POINTS", new Vector2(textX, position.Y), Color.White, 1);
+        }
+
+        private void DrawUFOPointValue(Renderer renderer, Vector2 position, string points)
+        {
+            var sprite = SpriteRepository.Instance.GetSprite(SpriteKey.UFO);
+            renderer.DrawSprite(sprite, position, Color.White);
+
+            var textX = position.X + 20;
+            DrawText(renderer, $"= {points} POINTS", new Vector2(textX, position.Y), Color.White, 1);
+        }
+
+        private void DrawText(Renderer renderer, string text, Vector2 position, Color color, int scale)
+        {
+            renderer.DrawText(text, position, color, scale);
+        }
+
+        private void DrawCharacter(Renderer renderer, char c, Vector2 position, Color color, float scale)
+        {
+            // Placeholder for character rendering
+            // To implement bitmap font data
+            var rect = new Domain.Rectangle(position.X, position.Y, 5 * scale, 7 * scale);
+            // renderer.DrawRectangle(rect, color); // To implement this
+        }
+
+        public StateTransitionRequest? HandleInput(Keys key, bool isKeyDown)
+        {
+            if (!isKeyDown && key == Keys.Space)
+            {
+                _onStartGame();
+                return new StateTransitionRequest
+                {
+                    Transition = StateTransition.ToPlaying,
+                    ResetGame = true
+                };
+            }
+            return null;
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: VictoryState.cs
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Graphics;
+using Rectangle = SpaceInvaders.Game.Domain.Rectangle;
+
+namespace SpaceInvaders.Game.States
+{
+    /// <summary>
+    /// Victory screen - shown when all invaders are destroyed
+    /// </summary>
+    public class VictoryState : IGameState
+    {
+        private readonly Func<int> _getScore;
+        private int _finalScore;
+        private float _timer;
+        private readonly Random _random = new();
+
+        public VictoryState(Func<int> getScore)
+        {
+            _getScore = getScore;
+        }
+
+        public void Enter(StateTransitionContext? context = null)
+        {
+            _timer = 0;
+            _finalScore = _getScore();
+        }
+
+        public void Exit() { }
+
+        public StateTransitionRequest? Update(float deltaTime)
+        {
+            _timer += deltaTime;
+            return null;
+        }
+
+        public void Draw(Renderer renderer)
+        {
+            renderer.Clear(Color.Black);
+
+            // Victory text with color cycling
+            var hue = (int)(_timer * 60) % 360;
+            var victoryColor = ColorFromHSV(hue, 1, 1);
+            renderer.DrawTextCentered("VICTORY!", 50, victoryColor, 2);
+
+            // Score
+            renderer.DrawTextCentered($"FINAL SCORE: {_finalScore}", 100, Color.White, 1);
+
+            // Earth saved message
+            renderer.DrawTextCentered("THE EARTH IS SAFE", 130, Color.Cyan, 1);
+            renderer.DrawTextCentered("YOU ARE A HERO", 145, Color.Cyan, 1);
+
+            // Draw fireworks/start
+            DrawCelebration(renderer);
+
+            // Continue prompt
+            if ((int)(_timer * 2) % 2 == 0)
+            {
+                renderer.DrawTextCentered("PRESS SPACE TO CONTINUE", 200, Color.White, 1);
+            }
+        }
+
+        private void DrawCelebration(Renderer renderer)
+        {
+            // Simple star field effect
+            var starCount = 20;
+            for (int i = 0; i < starCount; i++)
+            {
+                var x = (float)(Math.Sin(i * 1.5f + _timer) * 50 + GameConstants.GAME_WIDTH / 2);
+                var y = (float)(Math.Cos(i * 1.5f + _timer * 0.8f) * 30 + 100);
+                var size = (float)(Math.Sin(_timer * 3 + i) * .5 + 1.5);
+
+                // Draw star as pixels
+                var starColor = Color.FromArgb(
+                    255,
+                    255,
+                    255,
+                    (int)(128 + 127 * Math.Sin(_timer * 5 + i))
+                );
+
+                // Draw a simple star/sparkle
+                renderer.FillRectangle(new Rectangle(x - size/2, y, size, 1), starColor);
+                renderer.FillRectangle(new Rectangle(x, y - size/2, 1, size), starColor);
+            }
+        }
+
+        private Color ColorFromHSV(double hue, double saturation, double value)
+        {
+            int hi = Convert.ToInt32(Math.Floor(hue / 60)) % 6;
+            double f = hue / 60 - Math.Floor(hue / 60);
+
+            value = value * 255;
+            int v = Convert.ToInt32(value);
+            int p = Convert.ToInt32(value * (1 - saturation));
+            int q = Convert.ToInt32(value * (1 - f * saturation));
+            int t = Convert.ToInt32(value * (1 - (1 - f) * saturation));
+
+            return hi switch
+            {
+                0 => Color.FromArgb(255, v, t, p),
+                1 => Color.FromArgb(255, q, v, p),
+                2 => Color.FromArgb(255, p, v, t),
+                3 => Color.FromArgb(255, p, q, v),
+                4 => Color.FromArgb(255, t, p, v),
+                _ => Color.FromArgb(255, v, p, q),
+            };
+        }
+
+        public StateTransitionRequest? HandleInput(Keys key, bool isKeyDown)
+        {
+            if (!isKeyDown && key == Keys.Space && _timer > 2.0f)
+            {
+                return new StateTransitionRequest
+                {
+                    Transition = StateTransition.ToMenu
+                };
+            }
+            return null;
+        }
+
+    }
+}
+
+
+// ========================
+

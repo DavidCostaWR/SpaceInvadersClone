@@ -2,6 +2,7 @@
 using SpaceInvaders.Game.Entities;
 using SpaceInvaders.Game.Graphics;
 using SpaceInvaders.Game.Input;
+using SpaceInvaders.Game.States;
 using Timer = System.Windows.Forms.Timer;
 
 namespace SpaceInvaders.Game
@@ -12,6 +13,8 @@ namespace SpaceInvaders.Game
         private readonly Timer _gameTimer;
         private readonly KeyboardInputHandler _inputHandler;
         private readonly GameCore _game;
+        private readonly GameStateManager _stateManager;
+
         private DateTime _lastUpdate = DateTime.Now;
 
         public GameForm()
@@ -21,8 +24,10 @@ namespace SpaceInvaders.Game
 
             _renderer = new Renderer();
             _inputHandler = new KeyboardInputHandler();
-
             _game = new GameCore(_inputHandler);
+            _stateManager = new GameStateManager(_renderer, _game);
+
+            SetupStates();
 
             // Enable key events
             KeyPreview = true;  // Form receives key events before controls
@@ -32,6 +37,23 @@ namespace SpaceInvaders.Game
             _gameTimer.Interval = GameConstants.FRAME_TIME_MS;
             _gameTimer.Tick += GameTimer_Tick;
             _gameTimer.Start();
+        }
+
+        private void SetupStates()
+        {
+            var startMenuState = new StartMenuState(() => { /* Game start logic */ });
+            var playingState = new PlayingState(_game, _inputHandler);
+            var pauseMenuState = new PauseMenuState();
+            var gameOverState = new GameOverState(() => _game.Score);
+            var victoryState = new VictoryState(() => _game.Score);
+
+            _stateManager.RegisterState(startMenuState);
+            _stateManager.RegisterState(playingState);
+            _stateManager.RegisterState(pauseMenuState);
+            _stateManager.RegisterState(gameOverState);
+            _stateManager.RegisterState(victoryState);
+
+            _stateManager.StartWithState<StartMenuState>();
         }
 
         private void SetupWindow()
@@ -53,19 +75,21 @@ namespace SpaceInvaders.Game
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
+
             _inputHandler.KeyDown(e.KeyCode);
+            _stateManager.HandleInput(e.KeyCode, true);
 
             // Prevent beep sound on spacebar
             if (e.KeyCode == Keys.Space)
-            {
                 e.Handled = true;
-            }
         }
 
         protected override void OnKeyUp(KeyEventArgs e)
         {
             base.OnKeyUp(e);
+
             _inputHandler.KeyUp(e.KeyCode);
+            _stateManager.HandleInput(e.KeyCode, false);
         }
 
         private void Update()
@@ -74,127 +98,25 @@ namespace SpaceInvaders.Game
             var deltaTime = (float)(now - _lastUpdate).TotalSeconds;
             _lastUpdate = now;
 
-            _game.Update(deltaTime);
-
+            _stateManager.Update(deltaTime);
             _inputHandler.Update();
 
-            switch (_game.State)
-            {
-                case GameState.Playing:
-                    break;
-                case GameState.GameOver:
-                    _gameTimer.Stop();
-                    MessageBox.Show("Game Over! Invaders reached Earth!", "Game Over");
-                    break;
-                case GameState.Victory:
-                    _gameTimer.Stop();
-                    MessageBox.Show($"Victory! Score: {_game.Score}", "Victory");
-                    break;
-            }
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
 
-            // Clear to black
             _renderer.Clear(Color.Black);
 
-            // Draw all invaders
-            foreach (var invader in _game.Invaders)
-            {
-                var sprite = SpriteRepository.Instance.GetInvaderSprite(
-                    invader.Type,
-                    _game.CurrentAnimationFrame
-                );
-                _renderer.DrawSprite(sprite, invader.Position, Color.White);
-            }
-
-            DrawUFO();
-            DrawPlayer();
-            DrawBullets();
+            _stateManager.Draw();
 
             // Present to screen
             var targetRect = new Domain.Rectangle(0, 0, ClientSize.Width, ClientSize.Height);
             _renderer.Present(e.Graphics, targetRect);
-
-            DrawHUD(e.Graphics);
         }
 
-        private void DrawUFO()
-        {
-            var ufo = _game.CurrentUFO;
-            if (ufo == null) return;
-
-            var sprite = SpriteRepository.Instance.GetSprite(SpriteKey.UFO);
-            _renderer.DrawSprite(sprite, ufo.Position, Color.Red);
-        }
-
-        private void DrawPlayer()
-        {
-            var player = _game.Player;
-
-            if (!player.ShouldRender) return;
-
-            ISprite sprite;
-            Color color = Color.White;
-
-            if (player.State == PlayerState.Dying)
-            {
-                // Use explosion sprite based on animation frame
-                var spriteKey = player.DeathAnimationFrame == 0
-                    ? SpriteKey.PlayerExplosion1
-                    : SpriteKey.PlayerExplosion2;
-                sprite = SpriteRepository.Instance.GetSprite(spriteKey);
-            }
-            else 
-            { 
-                sprite = SpriteRepository.Instance.GetSprite(SpriteKey.Player);
-
-                if (player.State == PlayerState.Respawning)
-                    color = Color.Cyan;
-            }
-            _renderer.DrawSprite(sprite, player.Position, color);
-        }
-
-        private void DrawBullets()
-        {
-            foreach (var bullet in _game.Bullets)
-            {
-                ISprite bulletSprite;
-                Color bulletColor = Color.White;
-
-                if (bullet.Type == BulletType.Player)
-                {
-                    bulletSprite = SpriteRepository.Instance.GetSprite(SpriteKey.PlayerBullet);
-                }
-                else
-                {
-                    var spriteKey = _game.CurrentAnimationFrame == 0 
-                        ? SpriteKey.InvaderBulletFrame1 
-                        : SpriteKey.InvaderBulletFrame2;
-                    bulletSprite = SpriteRepository.Instance.GetSprite(spriteKey);
-                }
-
-                _renderer.DrawSprite(bulletSprite, bullet.Position, bulletColor);
-            }
-        }
-
-        private void DrawHUD(System.Drawing.Graphics graphics)
-        {
-            var font = new Font("Consolas", 12);
-            var brush = new SolidBrush(Color.White);
-
-            // Score at top left
-            var scoreText = $"SCORE: {_game.Score:D5}";
-            graphics.DrawString(scoreText, font, brush, 10, 10);
-
-            // Lives at top right
-            var livesText = $"LIVES: {_game.Lives}";
-            var textSize = graphics.MeasureString(livesText, font);
-            graphics.DrawString(livesText, font, brush, ClientSize.Width - textSize.Width - 10, 10);
-        }
-
+        
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
             base.OnFormClosed(e);

@@ -27,7 +27,7 @@ namespace SpaceInvaders.Game.Managers
             _maxPlayerBullets = maxPlayerBullets;
         }
 
-        public bool TryFirePlayerBulet(Vector2 position)
+        public bool TryFirePlayerBullet(Vector2 position)
         {
             // Enforce bullet limit
             if (ActivePlayerBulletCount >= _maxPlayerBullets)

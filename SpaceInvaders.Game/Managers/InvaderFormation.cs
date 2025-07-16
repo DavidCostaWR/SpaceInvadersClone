@@ -272,8 +272,7 @@ namespace SpaceInvaders.Game.Managers
             _direction = 1;
 
             // Reinitialize
-
-            InitializeInvaders();
+            InitializeFormation();
         }
     }
 }

@@ -1,0 +1,289 @@
+// FOLDER: Domain
+// ========================
+
+
+// FILE: Entity.cs
+
+namespace SpaceInvaders.Game.Domain
+{
+    /// <summary>
+    /// Base implementation for game entities.
+    /// Abstract because we never instantiate a raw Entity.
+    /// </summary>
+    public abstract class Entity : IEntity
+    {
+        public Vector2 Position { get; set; }
+        public Vector2 Size { get; }
+        public bool IsActive { get; protected set; }
+
+        // computed property for bounding box, always synced with Position
+        public Rectangle Bounds => new(Position, Size);
+
+        protected Entity(Vector2 position, Vector2 size)
+        {
+            Position = position;
+            Size = size;
+            IsActive = true;
+        }
+
+        public abstract void Update(float deltaTime);
+
+        public virtual void Destroy() => IsActive = false;
+    }
+}
+
+
+// ========================
+
+
+// FILE: GameConstants.cs
+
+using SpaceInvaders.Game.Graphics;
+
+namespace SpaceInvaders.Game.Domain
+{
+    /// <summary>
+    /// Central configuration for the game.
+    /// Based on the original 1978 Space Invaders specifications.
+    /// </summary>
+    public static class GameConstants
+    {
+        // Display
+        public const int GAME_WIDTH = 224;
+        public const int GAME_HEIGHT = 256;
+        public const int DISPLAY_SCALE = 3;
+        public const int DISPLAY_WIDTH = GAME_WIDTH * DISPLAY_SCALE;
+        public const int DISPLAY_HEIGHT = GAME_HEIGHT * DISPLAY_SCALE;
+
+        // Player
+        public const float PLAYER_SPEED = 100f; // Pixels per second
+        public const float PLAYER_START_Y = 230f; // Near the bottom of the screen
+        public const float PLAYER_FIRE_COOLDOWN = 0.05f; // Seconds between shots
+        public static Vector2 PlayerStartPosition
+        {
+            get
+            {
+                float playerWidth = 13f; // Default player width
+                try
+                {
+                    var sprite = SpriteRepository.Instance.GetSprite(SpriteKey.Player);
+                    playerWidth = sprite.Width;
+                }
+                catch { }
+
+                return new Vector2((GAME_WIDTH / 2f - playerWidth) / 2f, PLAYER_START_Y);
+            }
+        }
+
+        // Formation
+        public const int INVADER_ROWS = 5;
+        public const int INVADER_COLUMNS = 11;
+        public const int INVADER_HORIZONTAL_SPACING = 16;
+        public const int INVADER_VERTICAL_SPACING = 16;
+        public const float INVADER_DROP_DISTANCE = 8f;
+        public const float FORMATION_TOP_MARGIN = 16f;
+        public const float FORMATION_BOTTOM_DANGER_ZONE = 32f;
+
+        // UFO
+        public const float UFO_SPEED = 50f;                    // Pixels per second
+        public const float UFO_Y_POSITION = 40f;               // Just below the score
+        public const float UFO_MIN_SPAWN_TIME = 20f;           // Minimum seconds between UFOs
+        public const float UFO_MAX_SPAWN_TIME = 40f;           // Maximum seconds between UFOs
+        public const int UFO_MIN_POINTS = 50;                  // Minimum UFO value
+        public const int UFO_MAX_POINTS = 300;                 // Maximum UFO value
+        public const int UFO_POINT_INCREMENT = 50;             // UFO points are multiples of 50
+
+        // Movement
+        public const float INVADER_BASE_SPEED = 10f;
+        public const float INVADER_SPEED_INCREMENT_PER_KILL = 1.01f;
+        public const float INVADER_ANIMATION_INTERVAL = 0.5f;
+
+        // Calculated values (as properties)
+        public static int TotalInvaders => INVADER_ROWS * INVADER_COLUMNS;
+        public static float FormationWidth => INVADER_COLUMNS * INVADER_HORIZONTAL_SPACING;
+
+        // Projectiles
+        public const float BULLET_SPEED = 500f;             // Player bullet speed (pixels/second)
+        public const float INVADER_BULLET_SPEED = 100f;     // Invader bullets are slower
+        public const int MAX_PLAYER_BULLETS = 10;            // Original game allowed only 1
+        public const int MAX_INVADER_BULLETS = 3;           // Maximum simultaneous invader shots
+
+        // Game rules
+        public const int PLAYER_LIVES = 3;
+
+        // Scoring
+        public static class Points
+        {
+            public const int SmallInvader = 30;
+            public const int MediumInvader = 20;
+            public const int LargeInvader = 10;
+            public const int UFO_MIN = 50;
+            public const int UFO_MAX = 300;
+        }
+
+        // Timing
+        public const int TARGET_FPS = 60;
+        public const int FRAME_TIME_MS = 1000 / TARGET_FPS;
+    }
+}
+
+
+// ========================
+
+
+// FILE: IEntity.cs
+
+namespace SpaceInvaders.Game.Domain
+{
+    /// <summary>
+    /// Contract for all game entities.
+    /// Interface-first design for flexibility.
+    /// </summary>
+    public interface IEntity
+    {
+        Vector2 Position { get; }
+        Rectangle Bounds { get; }
+        bool IsActive { get; }
+
+        void Update(float deltaTime);
+    }
+}
+
+
+// ========================
+
+
+// FILE: Rectangle.cs
+
+namespace SpaceInvaders.Game.Domain
+{
+    /// <summary>
+    /// Axis-aligned bounding box for collision detection
+    /// </summary>
+    public readonly struct Rectangle : IEquatable<Rectangle>
+    {
+        public float X { get; }
+        public float Y { get; }
+        public float Width { get; }
+        public float Height { get; }
+
+        public float Left => X;
+        public float Top => Y;
+        public float Right => X + Width;
+        public float Bottom => Y + Height;
+
+        public Rectangle(float x, float y, float width, float height)
+        {
+            X = x;
+            Y = y;
+            Width = width;
+            Height = height;
+        }
+
+        public System.Drawing.Rectangle ToDrawingRectangle()
+            => new((int)X, (int)Y, (int)Width, (int)Height);
+
+        public static implicit operator System.Drawing.Rectangle(Rectangle rect)
+            => rect.ToDrawingRectangle();
+
+        public Rectangle(Vector2 position, Vector2 size)
+            : this(position.X, position.Y, size.X, size.Y) { }
+
+        public bool Intersects(Rectangle other) 
+            => Left < other.Right &&
+               Right > other.Left &&
+               Top < other.Bottom &&
+               Bottom > other.Top;
+
+        public bool Contains(Vector2 point) 
+            => point.X >= Left &&
+               point.X <= Right &&
+               point.Y >= Top &&
+               point.Y <= Bottom;
+
+        public Rectangle Offset(Vector2 offset) 
+            => new(X + offset.X, Y + offset.Y, Width, Height);
+
+        public bool Equals(Rectangle other) 
+            => X.Equals(other.X) &&
+               Y.Equals(other.Y) &&
+               Width.Equals(other.Width) &&
+               Height.Equals(other.Height);
+
+        public override bool Equals(object? obj) 
+            => obj is Rectangle other && Equals(other);
+
+        public override int GetHashCode()
+            => HashCode.Combine(X, Y, Width, Height);
+
+        public override string ToString()
+            => $"[{X:F2}, {Y:F2}, {Width:F2}, {Height:F2}]";
+    }
+}
+
+
+// ========================
+
+
+// FILE: Vector2.cs
+
+
+namespace SpaceInvaders.Game.Domain
+{
+    /// <summary>
+    /// Represents a 2D position or direction in the game world.
+    /// Immutable to prevent accidental modifications.
+    /// </summary>
+    public readonly struct Vector2 : IEquatable<Vector2>
+    {
+        public float X { get; }
+        public float Y { get; }
+
+        public Vector2(float x, float y)
+        {
+            X = x;
+            Y = y;
+        }
+
+        // Factory methods for common vectors
+        public static Vector2 Zero => new Vector2(0, 0);
+        public static Vector2 One => new Vector2(1, 1);
+        public static Vector2 Up => new Vector2(0, -1);
+        public static Vector2 Down => new Vector2(0, 1);
+        public static Vector2 Left => new Vector2(-1, 0);
+        public static Vector2 Right => new Vector2(1, 0);
+
+        // Operator overloads for intuitive vector arithmetic
+        public static Vector2 operator +(Vector2 a, Vector2 b) 
+            => new Vector2(a.X + b.X, a.Y + b.Y);
+
+        public static Vector2 operator -(Vector2 a, Vector2 b) 
+            => new Vector2(a.X - b.X, a.Y - b.Y);
+        
+        public static Vector2 operator *(Vector2 v, float scalar) 
+            => new Vector2(v.X * scalar, v.Y * scalar);
+        
+        public static Vector2 operator *(float scalar, Vector2 v)
+            => v * scalar;
+        
+        public static Vector2 operator /(Vector2 v, float scalar) 
+            => new Vector2(v.X / scalar, v.Y / scalar);
+        
+        // Implement IEquatable for performance
+        public bool Equals(Vector2 other) 
+            => X == other.X && Y == other.Y;
+        
+        public override bool Equals(object? obj) 
+            => obj is Vector2 other && Equals(other);
+        
+        public override int GetHashCode() 
+            => HashCode.Combine(X, Y);
+        
+        public override string ToString() 
+            => $"({X}, {Y})";
+    }
+}
+
+
+// ========================
+

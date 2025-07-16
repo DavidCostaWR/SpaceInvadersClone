@@ -18,7 +18,7 @@ namespace SpaceInvaders.Game.Domain
         // Player
         public const float PLAYER_SPEED = 100f; // Pixels per second
         public const float PLAYER_START_Y = 230f; // Near the bottom of the screen
-        public const float PLAYER_FIRE_COOLDOWN = 0.5f; // Seconds between shots
+        public const float PLAYER_FIRE_COOLDOWN = 0.05f; // Seconds between shots
         public static Vector2 PlayerStartPosition
         {
             get
@@ -65,7 +65,7 @@ namespace SpaceInvaders.Game.Domain
         // Projectiles
         public const float BULLET_SPEED = 500f;             // Player bullet speed (pixels/second)
         public const float INVADER_BULLET_SPEED = 100f;     // Invader bullets are slower
-        public const int MAX_PLAYER_BULLETS = 1;            // Original game allowed only 1
+        public const int MAX_PLAYER_BULLETS = 10;            // Original game allowed only 1
         public const int MAX_INVADER_BULLETS = 3;           // Maximum simultaneous invader shots
 
         // Game rules

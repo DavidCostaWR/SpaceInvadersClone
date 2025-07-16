@@ -12,8 +12,8 @@ namespace SpaceInvaders.Tests.Managers
             var manager = new BulletManager(maxPlayerBullets: 1);
 
             // Act
-            bool firstShot = manager.TryFirePlayerBulet(Vector2.Zero);
-            bool secondShot = manager.TryFirePlayerBulet(Vector2.Zero);
+            bool firstShot = manager.TryFirePlayerBullet(Vector2.Zero);
+            bool secondShot = manager.TryFirePlayerBullet(Vector2.Zero);
 
             // Assert
             Assert.True(firstShot);
@@ -26,7 +26,7 @@ namespace SpaceInvaders.Tests.Managers
         {
             // Arrange
             var manager = new BulletManager();
-            manager.TryFirePlayerBulet(new Vector2(50, 10));
+            manager.TryFirePlayerBullet(new Vector2(50, 10));
 
             // Act
             manager.Update(10f);
@@ -56,7 +56,7 @@ namespace SpaceInvaders.Tests.Managers
         {
             // Arrange
             var manager = new BulletManager();
-            manager.TryFirePlayerBulet(Vector2.Zero);
+            manager.TryFirePlayerBullet(Vector2.Zero);
             manager.FireInvaderBullet(Vector2.Zero);
 
             // Act

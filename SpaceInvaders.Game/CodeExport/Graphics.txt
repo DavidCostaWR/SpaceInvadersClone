@@ -1,0 +1,1123 @@
+// FOLDER: Graphics
+// ========================
+
+
+// FILE: AnimationController.cs
+
+namespace SpaceInvaders.Game.Graphics
+{
+    /// <summary>
+    /// Manages sprite animation timing and frame selection
+    /// </summary>
+    public class AnimationController
+    {
+        private float _timer;
+        private int _currentFrame;
+        private readonly float _frameInterval;
+        private readonly int _frameCount;
+
+        public int CurrentFrame => _currentFrame;
+        public float FrameInterval => _frameInterval;
+
+        public AnimationController(float frameInterval, int frameCount = 2)
+        {
+            _frameInterval = frameInterval;
+            _frameCount = frameCount;
+            _timer = 0f;
+            _currentFrame = 0;
+        }
+
+        public void Update(float deltaTime)
+        {
+            _timer += deltaTime;
+
+            while (_timer >= _frameInterval)
+            {
+                _timer -= _frameInterval;
+                _currentFrame = (_currentFrame + 1) % _frameCount;
+            }
+        }
+
+        public void Reset()
+        {
+            _timer = 0f;
+            _currentFrame = 0;
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: BitmapFont.cs
+
+
+using SpaceInvaders.Game.Domain;
+using Rectangle = SpaceInvaders.Game.Domain.Rectangle;
+
+namespace SpaceInvaders.Game.Graphics
+{
+    /// <summary>
+    /// Simple bitmap font for retro text rendering
+    /// </summary>
+    public class BitmapFont
+    {
+        private readonly Dictionary<char, BitmapSprite> _characters;
+        private readonly int _characterWidth;
+        private readonly int _characterHeight;
+        private readonly int _spacing;
+
+        public int CharacterWidth => _characterWidth;
+        public int CharacterHeight => _characterHeight;
+
+        public BitmapFont()
+        {
+            _characterWidth = 5;
+            _characterHeight = 7;
+            _spacing = 1;
+            _characters = new Dictionary<char, BitmapSprite>();
+            LoadCharacters();
+        }
+
+        private void LoadCharacters()
+        {
+            // Define bitmap patterns for each characters
+            // These are 5 x 7 pixel characters
+            _characters['A'] = new BitmapSprite(new[] {
+                " XXX ",
+                "X   X",
+                "X   X",
+                "XXXXX",
+                "X   X",
+                "X   X",
+                "X   X"
+            });
+
+            _characters['B'] = new BitmapSprite(new[] {
+                "XXXX ",
+                "X   X",
+                "X   X",
+                "XXXX ",
+                "X   X",
+                "X   X",
+                "XXXX "
+            });
+
+            _characters['C'] = new BitmapSprite(new[] {
+                " XXX ",
+                "X   X",
+                "X    ",
+                "X    ",
+                "X    ",
+                "X   X",
+                " XXX "
+            });
+
+            _characters['D'] = new BitmapSprite(new[] {
+                "XXXX ",
+                "X   X",
+                "X   X",
+                "X   X",
+                "X   X",
+                "X   X",
+                "XXXX "
+            });
+
+            _characters['E'] = new BitmapSprite(new[] {
+                "XXXXX",
+                "X    ",
+                "X    ",
+                "XXXX ",
+                "X    ",
+                "X    ",
+                "XXXXX"
+            });
+
+            _characters['F'] = new BitmapSprite(new[] {
+                "XXXXX",
+                "X    ",
+                "X    ",
+                "XXXX ",
+                "X    ",
+                "X    ",
+                "X    "
+            });
+
+            _characters['G'] = new BitmapSprite(new[] {
+                " XXX ",
+                "X   X",
+                "X    ",
+                "X  XX",
+                "X   X",
+                "X   X",
+                " XXX "
+            });
+
+            _characters['H'] = new BitmapSprite(new[] {
+                "X   X",
+                "X   X",
+                "X   X",
+                "XXXXX",
+                "X   X",
+                "X   X",
+                "X   X"
+            });
+
+            _characters['I'] = new BitmapSprite(new[] {
+                "XXXXX",
+                "  X  ",
+                "  X  ",
+                "  X  ",
+                "  X  ",
+                "  X  ",
+                "XXXXX"
+            });
+
+            _characters['J'] = new BitmapSprite(new[] {
+                "  XXX",
+                "    X",
+                "    X",
+                "    X",
+                "X   X",
+                "X   X",
+                " XXX "
+            });
+
+            _characters['K'] = new BitmapSprite(new[] {
+                "X   X",
+                "X  X ",
+                "X X  ",
+                "XX   ",
+                "X X  ",
+                "X  X ",
+                "X   X"
+            });
+
+            _characters['L'] = new BitmapSprite(new[] {
+                "X    ",
+                "X    ",
+                "X    ",
+                "X    ",
+                "X    ",
+                "X    ",
+                "XXXXX"
+            });
+
+            _characters['M'] = new BitmapSprite(new[] {
+                "X   X",
+                "XX XX",
+                "X X X",
+                "X   X",
+                "X   X",
+                "X   X",
+                "X   X"
+            });
+
+            _characters['N'] = new BitmapSprite(new[] {
+                "X   X",
+                "XX  X",
+                "X X X",
+                "X  XX",
+                "X   X",
+                "X   X",
+                "X   X"
+            });
+
+            _characters['O'] = new BitmapSprite(new[] {
+                " XXX ",
+                "X   X",
+                "X   X",
+                "X   X",
+                "X   X",
+                "X   X",
+                " XXX "
+            });
+
+            _characters['P'] = new BitmapSprite(new[] {
+                "XXXX ",
+                "X   X",
+                "X   X",
+                "XXXX ",
+                "X    ",
+                "X    ",
+                "X    "
+            });
+
+            _characters['Q'] = new BitmapSprite(new[] {
+                " XXX ",
+                "X   X",
+                "X   X",
+                "X   X",
+                "X X X",
+                "X  XX",
+                " XXXX"
+            });
+
+            _characters['R'] = new BitmapSprite(new[] {
+                "XXXX ",
+                "X   X",
+                "X   X",
+                "XXXX ",
+                "X  X ",
+                "X   X",
+                "X   X"
+            });
+
+            _characters['S'] = new BitmapSprite(new[] {
+                " XXX ",
+                "X   X",
+                "X    ",
+                " XXX ",
+                "    X",
+                "X   X",
+                " XXX "
+            });
+
+            _characters['T'] = new BitmapSprite(new[] {
+                "XXXXX",
+                "  X  ",
+                "  X  ",
+                "  X  ",
+                "  X  ",
+                "  X  ",
+                "  X  "
+            });
+
+            _characters['U'] = new BitmapSprite(new[] {
+                "X   X",
+                "X   X",
+                "X   X",
+                "X   X",
+                "X   X",
+                "X   X",
+                " XXX "
+            });
+
+            _characters['V'] = new BitmapSprite(new[] {
+                "X   X",
+                "X   X",
+                "X   X",
+                "X   X",
+                " X X ",
+                " X X ",
+                "  X  "
+            });
+
+            _characters['W'] = new BitmapSprite(new[] {
+                "X   X",
+                "X   X",
+                "X   X",
+                "X X X",
+                "X X X",
+                "XX XX",
+                "X   X"
+            });
+
+            _characters['X'] = new BitmapSprite(new[] {
+                "X   X",
+                "X   X",
+                " X X ",
+                "  X  ",
+                " X X ",
+                "X   X",
+                "X   X"
+            });
+
+            _characters['Y'] = new BitmapSprite(new[] {
+                "X   X",
+                "X   X",
+                " X X ",
+                "  X  ",
+                "  X  ",
+                "  X  ",
+                "  X  "
+            });
+
+            _characters['Z'] = new BitmapSprite(new[] {
+                "XXXXX",
+                "    X",
+                "   X ",
+                "  X  ",
+                " X   ",
+                "X    ",
+                "XXXXX"
+            });
+
+            // Numbers
+            _characters['0'] = new BitmapSprite(new[] {
+                " XXX ",
+                "X   X",
+                "X  XX",
+                "X X X",
+                "XX  X",
+                "X   X",
+                " XXX "
+            });
+
+            _characters['1'] = new BitmapSprite(new[] {
+                "  X  ",
+                " XX  ",
+                "  X  ",
+                "  X  ",
+                "  X  ",
+                "  X  ",
+                "XXXXX"
+            });
+
+            _characters['2'] = new BitmapSprite(new[] {
+                " XXX ",
+                "X   X",
+                "    X",
+                "   X ",
+                "  X  ",
+                " X   ",
+                "XXXXX"
+            });
+
+            _characters['3'] = new BitmapSprite(new[] {
+                " XXX ",
+                "X   X",
+                "    X",
+                "  XX ",
+                "    X",
+                "X   X",
+                " XXX "
+            });
+
+            _characters['4'] = new BitmapSprite(new[] {
+                "   X ",
+                "  XX ",
+                " X X ",
+                "X  X ",
+                "XXXXX",
+                "   X ",
+                "   X "
+            });
+
+            _characters['5'] = new BitmapSprite(new[] {
+                "XXXXX",
+                "X    ",
+                "X    ",
+                "XXXX ",
+                "    X",
+                "X   X",
+                " XXX "
+            });
+
+            _characters['6'] = new BitmapSprite(new[] {
+                " XXX ",
+                "X   X",
+                "X    ",
+                "XXXX ",
+                "X   X",
+                "X   X",
+                " XXX "
+            });
+
+            _characters['7'] = new BitmapSprite(new[] {
+                "XXXXX",
+                "    X",
+                "   X ",
+                "  X  ",
+                " X   ",
+                " X   ",
+                " X   "
+            });
+
+            _characters['8'] = new BitmapSprite(new[] {
+                " XXX ",
+                "X   X",
+                "X   X",
+                " XXX ",
+                "X   X",
+                "X   X",
+                " XXX "
+            });
+
+            _characters['9'] = new BitmapSprite(new[] {
+                " XXX ",
+                "X   X",
+                "X   X",
+                " XXXX",
+                "    X",
+                "X   X",
+                " XXX "
+            });
+
+            // Special characters
+            _characters[' '] = new BitmapSprite(new[] {
+                "     ",
+                "     ",
+                "     ",
+                "     ",
+                "     ",
+                "     ",
+                "     "
+            });
+
+            _characters['!'] = new BitmapSprite(new[] {
+                "  X  ",
+                "  X  ",
+                "  X  ",
+                "  X  ",
+                "  X  ",
+                "     ",
+                "  X  "
+            });
+
+            _characters['?'] = new BitmapSprite(new[] {
+                " XXX ",
+                "X   X",
+                "    X",
+                "   X ",
+                "  X  ",
+                "     ",
+                "  X  "
+            });
+
+            _characters['>'] = new BitmapSprite(new[] {
+                "X    ",
+                " X   ",
+                "  X  ",
+                "   X ",
+                "  X  ",
+                " X   ",
+                "X    "
+            });
+
+            _characters['<'] = new BitmapSprite(new[] {
+                "    X",
+                "   X ",
+                "  X  ",
+                " X   ",
+                "  X  ",
+                "   X ",
+                "    X"
+            });
+
+            _characters[':'] = new BitmapSprite(new[] {
+                "     ",
+                "  X  ",
+                "  X  ",
+                "     ",
+                "  X  ",
+                "  X  ",
+                "     "
+            });
+
+            _characters['-'] = new BitmapSprite(new[] {
+                "     ",
+                "     ",
+                "     ",
+                "XXXXX",
+                "     ",
+                "     ",
+                "     "
+            });
+
+            _characters['_'] = new BitmapSprite(new[] {
+                "     ",
+                "     ",
+                "     ",
+                "     ",
+                "     ",
+                "     ",
+                "XXXXX"
+            });
+
+            _characters['+'] = new BitmapSprite(new[] {
+                "     ",
+                "  X  ",
+                "  X  ",
+                "XXXXX",
+                "  X  ",
+                "  X  ",
+                "     "
+            });
+
+            _characters['*'] = new BitmapSprite(new[] {
+                "     ",
+                "X   X",
+                " X X ",
+                "XXXXX",
+                " X X ",
+                "X   X",
+                "     "
+            });
+
+            _characters['.'] = new BitmapSprite(new[] {
+                "     ",
+                "     ",
+                "     ",
+                "     ",
+                "     ",
+                " XX  ",
+                " XX  "
+            });
+
+            _characters['='] = new BitmapSprite(new[] {
+                "     ",
+                "     ",
+                "XXXXX",
+                "     ",
+                "XXXXX",
+                "     ",
+                "     "
+            });
+
+            _characters['/'] = new BitmapSprite(new[] {
+                "    X",
+                "   X ",
+                "   X ",
+                "  X  ",
+                " X   ",
+                " X   ",
+                "X    "
+            });
+
+            _characters['('] = new BitmapSprite(new[] {
+                "  X  ",
+                " X   ",
+                "X    ",
+                "X    ",
+                "X    ",
+                " X   ",
+                "  X  "
+            });
+
+            _characters[')'] = new BitmapSprite(new[] {
+                "  X  ",
+                "   X ",
+                "    X",
+                "    X",
+                "    X",
+                "   X ",
+                "  X  "
+            });
+
+            _characters['['] = new BitmapSprite(new[] {
+                " XXX ",
+                " X   ",
+                " X   ",
+                " X   ",
+                " X   ",
+                " X   ",
+                " XXX "
+            });
+
+            _characters[']'] = new BitmapSprite(new[] {
+                " XXX ",
+                "   X ",
+                "   X ",
+                "   X ",
+                "   X ",
+                "   X ",
+                " XXX "
+            });
+        }
+
+        public void DrawText(Renderer renderer, string text, Vector2 position, Color color, float scale = 1.0f)
+        {
+            var x = position.X;
+            var y = position.Y;
+
+            foreach (char c in text.ToUpper())
+            {
+                if (_characters.TryGetValue(c, out var sprite))
+                {
+                    var scaledPos = new Vector2(x, y);
+                    renderer.DrawSprite(sprite, scaledPos, color);
+                }
+
+                x += _characterWidth * scale + _spacing;
+            }
+        }
+
+        public void DrawTextCentered(Renderer renderer, string text, float y, Color color, float scale = 1.0f)
+        {
+            var textWidth = MeasureString(text, scale);
+            var x = (GameConstants.GAME_WIDTH - textWidth) / 2;
+            DrawText(renderer, text, new Vector2(x, y), color, scale);
+        }
+
+        public void DrawTextCenteredInRect(Renderer renderer, string text, Rectangle bounds, Color color, float scale = 1.0f)
+        {
+            var textWidth = MeasureString(text, scale);
+            var textHeight = _characterHeight * scale;
+
+            var x = bounds.X + (bounds.Width - textWidth) / 2;
+            var y = bounds.Y + (bounds.Height - textHeight) / 2;
+
+            DrawText(renderer, text, new Vector2(x, y), color, scale);
+        }
+
+        public float MeasureString(string text, float scale = 1.0f)
+        {
+            return text.Length * (_characterWidth + _spacing) * scale - _spacing * scale;
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: BitmapSprite.cs
+
+using System.Drawing;
+
+namespace SpaceInvaders.Game.Graphics
+{
+    /// <summary>
+    /// Sprite defined by a 2D array of pixels.
+    /// Used for authentic pixel art.
+    /// </summary>
+    public class BitmapSprite : ISprite
+    {
+        private readonly bool[,] _pixels;
+
+        public int Width { get; }
+        public int Height { get; }
+
+        public BitmapSprite(string[] pattern)
+        {
+            if (pattern == null || pattern.Length == 0)
+                throw new ArgumentException("Pattern cannot be null or empty");
+
+            Height = pattern.Length;
+            Width = pattern[0].Length;
+            _pixels = new bool[Width, Height];
+
+            for (int y = 0; y < Height; y++)
+            {
+                if (pattern[y].Length != Width)
+                    throw new ArgumentException($"Inconsistent row width at row {y}");
+
+                for (int x = 0; x < Width; x++)
+                {
+                    _pixels[x, y] = pattern[y][x] != ' ';
+                }
+            }
+        }
+
+        public void Draw(System.Drawing.Graphics graphics, int x, int y, System.Drawing.Color color)
+        {
+            using var brush = new SolidBrush(color);
+
+            for (int py = 0; py < Height; py++)
+            {
+                for (int px = 0; px < Width; px++)
+                {
+                    if (_pixels[px, py])
+                    {
+                        graphics.FillRectangle(brush, x + px, y + py, 1, 1);
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: ISprite.cs
+
+using System.Drawing;
+
+namespace SpaceInvaders.Game.Graphics
+{
+    /// <summary>
+    /// Represents a drawable sprite
+    /// Abstraction allows different implementations (bitmap, vector, etc.)
+    /// </summary>
+    public interface ISprite
+    {
+        int Width { get; }
+        int Height { get; }
+        void Draw(System.Drawing.Graphics graphics, int x, int y, Color color);
+    }
+}
+
+
+// ========================
+
+
+// FILE: Renderer.cs
+
+using SpaceInvaders.Game.Domain;
+using Rectangle = SpaceInvaders.Game.Domain.Rectangle;
+
+namespace SpaceInvaders.Game.Graphics
+{
+    /// <summary>
+    /// Handles all drawing operations.
+    /// Maintains the game's pixel buffer and scaling.
+    /// </summary>
+    public class Renderer : IDisposable
+    {
+        private readonly Bitmap _gameBuffer;
+        private readonly System.Drawing.Graphics _gameGraphics;
+        private readonly BitmapFont _font;
+        private bool _disposed;
+
+        public Renderer()
+        {
+            // Create buffer at original game resolution
+            _gameBuffer = new Bitmap(GameConstants.GAME_WIDTH, GameConstants.GAME_HEIGHT);
+            _gameGraphics = System.Drawing.Graphics.FromImage(_gameBuffer);
+            _font = new BitmapFont();
+
+            // Pixel-perfect rendering settings
+            _gameGraphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+            _gameGraphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
+            _gameGraphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+        }
+
+        public void Clear(Color color)
+        {
+            _gameGraphics.Clear(color);
+        }
+
+        public void DrawSprite(ISprite sprite, Vector2 position, Color color)
+        {
+            sprite.Draw(_gameGraphics, (int)position.X, (int)position.Y, color);
+        }
+
+        public void DrawText(string text, Vector2 position, Color color, float scale = 1.0f)
+        {
+            _font.DrawText(this, text, position, color, scale);
+        }
+
+        public void DrawTextCentered(string text, float y, Color color, float scale = 1.0f)
+        {
+            _font.DrawTextCentered(this, text, y, color, scale);
+        }
+
+        public void FillRectangle(Rectangle rect, Color color)
+        {
+            using var brush = new SolidBrush(color);
+            _gameGraphics.FillRectangle(brush, rect.ToDrawingRectangle());
+        }
+
+        public void DrawRectangle(Rectangle rect, Color color)
+        {
+            using var pen = new Pen(color, 1);
+            _gameGraphics.DrawRectangle(pen, rect.ToDrawingRectangle());
+        }
+
+        public void DrawPixel(int x, int y, Color color)
+        {
+            if (x >= 0 && x < GameConstants.GAME_WIDTH &&
+                y >= 0 && y < GameConstants.GAME_HEIGHT)
+            {
+                using var brush = new SolidBrush(color);
+                _gameGraphics.FillRectangle(brush, x, y, 1, 1);
+            }
+        }
+
+        public void Present(System.Drawing.Graphics targetGraphics, Rectangle targetBounds)
+        {
+            targetGraphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+            targetGraphics.DrawImage(_gameBuffer, targetBounds.ToDrawingRectangle());
+        }
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                _gameGraphics?.Dispose();
+                _gameBuffer?.Dispose();
+                _disposed = true;
+            }
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: SpriteData.cs
+
+
+namespace SpaceInvaders.Game.Graphics
+{
+    /// <summary>
+    /// Original Space Invaders sprite patterns.
+    /// Based on 1978 arcade ROM data.
+    /// </summary>
+    public static class SpriteData
+    {
+        // Small invader - 8x8 pixels
+        public static readonly string[] SmallInvaderFrame1 = 
+        {
+            "  X  X  ",
+            "   XX   ",
+            "  XXXX  ",
+            " XX  XX ",
+            "XXXXXXXX",
+            "X XXXX X",
+            "X      X",
+            " X    X "
+        };
+        public static readonly string[] SmallInvaderFrame2 = 
+        {
+            "  X  X  ",
+            "X  XX  X",
+            "X XXXX X",
+            "XXX  XXX",
+            "XXXXXXXX",
+            " XXXXXX ",
+            "  X  X  ",
+            "X      X"
+        };
+
+        // Medium invader - 11x8 pixels
+        public static readonly string[] MediumInvaderFrame1 =
+        [
+            "   X   X   ",
+            "  XXX XXX  ",
+            " XXXXXXXXX ",
+            "XXX XXX XXX",
+            "XXXXXXXXXXX",
+            "X XXXXXXX X",
+            "X X     X X",
+            "   XX XX   "
+        ];
+        public static readonly string[] MediumInvaderFrame2 =
+        [
+            "   X   X   ",
+            "X XXX XXX X",
+            "XXXXXXXXXXX",
+            "XXX XXX XXX",
+            " XXXXXXXXX ",
+            "  XXXXXXX  ",
+            " X       X ",
+            "X         X"
+        ];
+
+        // Large invader - 12x8 pixels
+        public static readonly string[] LargeInvaderFrame1 =
+        {
+            "    XXXX    ",
+            " XXXXXXXXXX ",
+            "XXXXXXXXXXXX",
+            "XXX  XX  XXX",
+            "XXXXXXXXXXXX",
+            "  XX    XX  ",
+            " XX  XX  XX ",
+            "XX        XX"
+        };
+        public static readonly string[] LargeInvaderFrame2 =
+        {
+            "    XXXX    ",
+            " XXXXXXXXXX ",
+            "XXXXXXXXXXXX",
+            "XXX  XX  XXX",
+            "XXXXXXXXXXXX",
+            "   XX  XX   ",
+            "  XX XX XX  ",
+            "XX   XX   XX"
+        };
+
+        // Player cannon - 13x8 pixels
+        public static readonly string[] Player =
+        {
+            "      X      ",
+            "     XXX     ",
+            "     XXX     ",
+            " XXXXXXXXXXX ",
+            "XXXXXXXXXXXXX",
+            "XXXXXXXXXXXXX",
+            "XXXXXXXXXXXXX",
+            "XXXXXXXXXXXXX"
+        };
+
+        // Player explosion animation - 15x8 pixels
+        public static readonly string[] PlayerExplosionFrame1 =
+        {
+            "    X     X    ",
+            " X   X   X   X ",
+            "  X   XXX   X  ",
+            "   XX  X  XX   ",
+            " XXXXXXXXXXXXX ",
+            "   XX  X  XX   ",
+            "  X   XXX   X  ",
+            " X   X   X   X "
+        };
+        public static readonly string[] PlayerExplosionFrame2 =
+        {
+            " X   X   X   X ",
+            "  X X X X X X  ",
+            "X  X  XXX  X  X",
+            " X  XX   XX  X ",
+            "  XX       XX  ",
+            " X  XX   XX  X ",
+            "X  X  XXX  X  X",
+            "  X X X X X X  "
+        };
+
+        // Player bullet - 1x4 pixels
+        public static readonly string[] PlayerBullet =
+        {
+            "X",
+            "X",
+            "X",
+            "X"
+        };
+
+        // Invader bullet - 3x7 pixels
+        public static readonly string[] InvaderBulletFrame1 =
+        {
+            " X ",
+            " X ",
+            " X ",
+            "XXX",
+            " X ",
+            " X ",
+            " X ",
+        };
+        public static readonly string[] InvaderBulletFrame2 =
+        {
+            " X ",
+            "X X",
+            " X ",
+            "X X",
+            " X ",
+            "X X",
+            " X "
+        };
+
+        // UFO - 16x7 pixels
+        public static readonly string[] UFO =
+        {
+            "     XXXXXX     ",
+            "   XXXXXXXXXX   ",
+            "  XXXXXXXXXXXX  ",
+            " XX XX XX XX XX ",
+            "XXXXXXXXXXXXXXXX",
+            "  XXX  XX  XXX  ",
+            "   X        X   "
+        };
+    }
+}
+
+
+// ========================
+
+
+// FILE: SpriteKey.cs
+
+namespace SpaceInvaders.Game.Graphics
+{
+    /// <summary>
+    /// Type-safe keys for sprite lookup
+    /// </summary>
+    public enum SpriteKey
+    {
+        // Invaders
+        InvaderSmallFrame1,
+        InvaderSmallFrame2,
+        InvaderMediumFrame1,
+        InvaderMediumFrame2,
+        InvaderLargeFrame1,
+        InvaderLargeFrame2,
+
+        // Player
+        Player,
+        PlayerExplosion1,
+        PlayerExplosion2,
+
+        // Projectiles
+        PlayerBullet,
+        InvaderBulletFrame1,
+        InvaderBulletFrame2,
+
+        // UFO
+        UFO
+    }
+}
+
+
+// ========================
+
+
+// FILE: SpriteRepository.cs
+
+using SpaceInvaders.Game.Entities;
+
+namespace SpaceInvaders.Game.Graphics
+{
+    /// <summary>
+    /// Central repository for all game sprites.
+    /// Singleton pattern ensures sprites are loaded once.
+    /// </summary>
+    public class SpriteRepository
+    {
+        private static SpriteRepository? _instance;
+        private readonly Dictionary<SpriteKey, ISprite> _sprites;
+
+        public static SpriteRepository Instance => _instance ??= new SpriteRepository();
+
+        private SpriteRepository()
+        {
+            _sprites = new Dictionary<SpriteKey, ISprite>();
+            LoadSprites();
+        }
+
+        private void LoadSprites()
+        {
+            // Invader sprites
+            _sprites[SpriteKey.InvaderSmallFrame1] = new BitmapSprite(SpriteData.SmallInvaderFrame1);
+            _sprites[SpriteKey.InvaderSmallFrame2] = new BitmapSprite(SpriteData.SmallInvaderFrame2);
+            _sprites[SpriteKey.InvaderMediumFrame1] = new BitmapSprite(SpriteData.MediumInvaderFrame1);
+            _sprites[SpriteKey.InvaderMediumFrame2] = new BitmapSprite(SpriteData.MediumInvaderFrame2);
+            _sprites[SpriteKey.InvaderLargeFrame1] = new BitmapSprite(SpriteData.LargeInvaderFrame1);
+            _sprites[SpriteKey.InvaderLargeFrame2] = new BitmapSprite(SpriteData.LargeInvaderFrame2);
+
+            // Player sprites
+            _sprites[SpriteKey.Player] = new BitmapSprite(SpriteData.Player);
+            _sprites[SpriteKey.PlayerExplosion1] = new BitmapSprite(SpriteData.PlayerExplosionFrame1);
+            _sprites[SpriteKey.PlayerExplosion2] = new BitmapSprite(SpriteData.PlayerExplosionFrame2);
+
+            // Bullet sprites
+            _sprites[SpriteKey.PlayerBullet] = new BitmapSprite(SpriteData.PlayerBullet);
+            _sprites[SpriteKey.InvaderBulletFrame1] = new BitmapSprite(SpriteData.InvaderBulletFrame1);
+            _sprites[SpriteKey.InvaderBulletFrame2] = new BitmapSprite(SpriteData.InvaderBulletFrame2);
+
+            // UFO sprites
+            _sprites[SpriteKey.UFO] = new BitmapSprite(SpriteData.UFO);
+        }
+
+        public ISprite GetSprite(SpriteKey key)
+        {
+            if (_sprites.TryGetValue(key, out var sprite))
+                return sprite;
+
+            throw new ArgumentException($"Sprite not found: {key}");
+        }
+
+        public ISprite GetInvaderSprite(InvaderType type, int animationFrame = 0)
+        {
+            var key = (type, animationFrame) switch
+            {
+                (InvaderType.Small, 0) => SpriteKey.InvaderSmallFrame1,
+                (InvaderType.Small, _) => SpriteKey.InvaderSmallFrame2,
+                (InvaderType.Medium, 0) => SpriteKey.InvaderMediumFrame1,
+                (InvaderType.Medium, _) => SpriteKey.InvaderMediumFrame2,
+                (InvaderType.Large, 0) => SpriteKey.InvaderLargeFrame1,
+                (InvaderType.Large, _) => SpriteKey.InvaderLargeFrame2,
+                _ => throw new ArgumentException($"Invalid invader type or frame: {type}, {animationFrame}")
+            };
+
+            return GetSprite(key);
+        }
+    }
+}
+
+
+// ========================
+
