@@ -1,0 +1,148 @@
+// FOLDER: Graphics
+// ========================
+
+
+// FILE: AnimationControllerTests.cs
+
+using SpaceInvaders.Game.Graphics;
+using Xunit;
+
+namespace SpaceInvaders.Tests.Graphics
+{
+    public class AnimationControllerTests
+    {
+        [Fact]
+        public void Update_ShouldAdvanceFrameAfterInterval()
+        {
+            // Arrange
+            var controller = new AnimationController(0.5f, 2);
+
+            // Act
+            controller.Update(0.3f); // Should not advance frame
+
+            // Assert
+            Assert.Equal(0, controller.CurrentFrame);
+
+            // Act
+            controller.Update(0.3f); // Should advance frame
+
+            // Assert
+            Assert.Equal(1, controller.CurrentFrame);
+        }
+
+        [Fact]
+        public void Update_ShouldWrapAroundToFirstFrame()
+        {
+            // Arrange
+            var controller = new AnimationController(0.5f, 2);
+
+            // Act
+            controller.Update(0.6f); // Advance to frame 1
+            controller.Update(0.6f); // Should wrap to frame 0
+
+            // Assert
+            Assert.Equal(0, controller.CurrentFrame);
+        }
+
+        [Fact]
+        public void Reset_ShouldReturnToFirstFrame()
+        {
+            // Arrange
+            var controller = new AnimationController(0.5f, 2);
+
+            // Act
+            controller.Update(0.6f); // Advance to frame 1
+            controller.Reset(); // Return to frame 0
+
+            // Assert
+            Assert.Equal(0, controller.CurrentFrame);
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: BitmapSpriteTests.cs
+
+using SpaceInvaders.Game.Graphics;
+using Xunit;
+
+namespace SpaceInvaders.Tests.Graphics
+{
+    public class BitmapSpriteTests
+    {
+        [Fact]
+        public void Constructor_ShouldSetCorrectDimensions()
+        {
+            // Arrange
+            var pattern = new[]
+            {
+                "  XX  ",
+                " XXXX ",
+                "XXXXXX",
+                "XX  XX"
+            };
+
+            // Act
+            var sprite = new BitmapSprite(pattern);
+
+            // Assert
+            Assert.Equal(6, sprite.Width);
+            Assert.Equal(4, sprite.Height);
+        }
+
+        [Fact]
+        public void Constructor_ShouldThrowOnInconsistentWidth()
+        {
+            // Arrange
+            var pattern = new[]
+            {
+                "  XX  ",
+                " XXXX",  // Different width
+                "XXXXXX"
+            };
+
+            // Act & Assert
+            Assert.Throws<ArgumentException>(() => new BitmapSprite(pattern));
+        }
+
+        [Fact]
+        public void SmallInvaderSprite_ShouldHaveCorrectSize()
+        {
+            // Arrange & Act
+            var sprite = new BitmapSprite(SpriteData.SmallInvaderFrame1);
+
+            // Assert
+            Assert.Equal(8, sprite.Width);
+            Assert.Equal(8, sprite.Height);
+        }
+
+        [Fact]
+        public void MediumInvaderSprite_ShouldHaveCorrectSize()
+        {
+            // Arrange & Act
+            var sprite = new BitmapSprite(SpriteData.MediumInvaderFrame1);
+
+            // Assert
+            Assert.Equal(11, sprite.Width);
+            Assert.Equal(8, sprite.Height);
+        }
+
+        [Fact]
+        public void LargeInvaderSprite_ShouldHaveCorrectSize()
+        {
+            // Arrange & Act
+            var sprite = new BitmapSprite(SpriteData.LargeInvaderFrame1);
+
+            // Assert
+            Assert.Equal(12, sprite.Width);
+            Assert.Equal(8, sprite.Height);
+        }
+    }
+}
+
+
+// ========================
+

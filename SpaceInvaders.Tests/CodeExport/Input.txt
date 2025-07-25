@@ -1,0 +1,75 @@
+// FOLDER: Input
+// ========================
+
+
+// FILE: KeyboardInputHandlerTests.cs
+
+using SpaceInvaders.Game.Input;
+using System.Windows.Forms;
+
+namespace SpaceInvaders.Tests.Input
+{
+    public class KeyboardInputHandlerTests
+    {
+        [Fact]
+        public void IsLeftPressed_ShouldReturnTrue_WhenLeftArrowPressed()
+        {
+            // Arrange
+            var handler = new KeyboardInputHandler();
+
+            // Act
+            handler.KeyDown(Keys.Left);
+
+            // Assert
+            Assert.True(handler.IsLeftPressed);
+        }
+
+        [Fact]
+        public void IsLeftPressed_ShouldReturnTrue_WhenAPressed()
+        {
+            // Arrange
+            var handler = new KeyboardInputHandler();
+
+            // Act
+            handler.KeyDown(Keys.A);
+
+            // Assert
+            Assert.True(handler.IsLeftPressed);
+        }
+
+        [Fact]
+        public void WasFireJustPressed_ShouldOnlyReturnTrueOnce()
+        {
+            // Arrange
+            var handler = new KeyboardInputHandler();
+
+            // Act & Assert - First frame
+            handler.KeyDown(Keys.Space);
+            Assert.True(handler.WasFireJustPressed);
+
+            // Act & Assert - Second frame
+            handler.Update(); // Simulate end of frame
+            Assert.False(handler.WasFireJustPressed);
+            Assert.True(handler.IsFirePressed);
+        }
+
+        [Fact]
+        public void KeyUp_ShouldReleaseKey()
+        {
+            // Arrange
+            var handler = new KeyboardInputHandler();
+            handler.KeyDown(Keys.Right);
+
+            // Act
+            handler.KeyUp(Keys.Right);
+
+            // Assert
+            Assert.False(handler.IsRightPressed);
+        }
+
+    }
+}
+
+
+// ========================
+

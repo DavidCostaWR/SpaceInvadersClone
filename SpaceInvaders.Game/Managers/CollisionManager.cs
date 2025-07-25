@@ -9,15 +9,35 @@ namespace SpaceInvaders.Game.Managers
     /// </summary>
     public class CollisionManager
     {
+        private readonly ShieldManager _shieldManager;
+
         public event EventHandler<CollisionEventArgs>? CollisionDetected;
+
+        public CollisionManager(ShieldManager shieldManager)
+        {
+            _shieldManager = shieldManager ?? throw new ArgumentNullException(nameof(shieldManager));
+        }
 
         public void CheckCollisions(
             IEnumerable<Bullet> bullets,
             IEnumerable<Invader> invaders,
             Player player)
         {
+            CheckBulletsVsShields(bullets);
             CheckPlayerBulletsVsInvaders(bullets, invaders);
             CheckInvaderBulletsVsPlayer(bullets, player);
+            _shieldManager.CheckInvaderCollisions(invaders);
+        }
+
+        private void CheckBulletsVsShields(IEnumerable<Bullet> bullets)
+        {
+            foreach (var bullet in bullets.Where(b => b.IsActive))
+            {
+                if (_shieldManager.CheckBulletCollision(bullet))
+                {
+                    bullet.Destroy();
+                }
+            }
         }
 
         private void CheckPlayerBulletsVsInvaders(

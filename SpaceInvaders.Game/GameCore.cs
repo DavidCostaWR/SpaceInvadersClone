@@ -19,6 +19,7 @@ namespace SpaceInvaders.Game
         private readonly BulletManager _bulletManager;
         private readonly CollisionManager _collisionManager;
         private readonly UFOManager _ufoManager;
+        private readonly ShieldManager _shieldManager;
 
         private readonly AnimationController _invaderAnimator;
         private readonly InvaderShootingController _invaderShootingController;
@@ -38,6 +39,7 @@ namespace SpaceInvaders.Game
         public int CurrentAnimationFrame => _invaderAnimator.CurrentFrame;
         public Player Player => _player;
         public UFO? CurrentUFO => _ufoManager.CurrentUFO;
+        public ShieldManager ShieldManager => _shieldManager;
         public IEnumerable<Bullet> Bullets => _bulletManager.Bullets;
 
         public GameCore(IInputHandler inputHandler)
@@ -47,10 +49,11 @@ namespace SpaceInvaders.Game
 
             // Initialize game objects
             _bulletManager = new BulletManager();
-            _collisionManager = new CollisionManager();
             _ufoManager = new UFOManager();
             _invaderAnimator = new AnimationController(GameConstants.INVADER_ANIMATION_INTERVAL);
             _invaderShootingController = new InvaderShootingController(_bulletManager);
+            _shieldManager = new ShieldManager();
+            _collisionManager = new CollisionManager(_shieldManager);
 
             _player = new Player(GameConstants.PlayerStartPosition, inputHandler);
             _invaderFormation = new InvaderFormation();
@@ -193,6 +196,7 @@ namespace SpaceInvaders.Game
             _bulletManager.Clear();
             _invaderShootingController.Reset();
             _ufoManager.Reset();
+            _shieldManager.Reset();
 
             _player.Position = GameConstants.PlayerStartPosition;
 

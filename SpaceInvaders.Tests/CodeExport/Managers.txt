@@ -1,0 +1,407 @@
+// FOLDER: Managers
+// ========================
+
+
+// FILE: BulletManagerTests.cs
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Managers;
+
+namespace SpaceInvaders.Tests.Managers
+{
+    public class BulletManagerTests
+    {
+        [Fact]
+        public void TryFirePlayerBullet_ShouldRespectMaxLimit()
+        {
+            // Arrange
+            var manager = new BulletManager(maxPlayerBullets: 1);
+
+            // Act
+            bool firstShot = manager.TryFirePlayerBullet(Vector2.Zero);
+            bool secondShot = manager.TryFirePlayerBullet(Vector2.Zero);
+
+            // Assert
+            Assert.True(firstShot);
+            Assert.False(secondShot);
+            Assert.Equal(1, manager.ActivePlayerBulletCount);
+        }
+
+        [Fact]
+        public void Update_ShouldRemoveBulletsOutOfBounds()
+        {
+            // Arrange
+            var manager = new BulletManager();
+            manager.TryFirePlayerBullet(new Vector2(50, 10));
+
+            // Act
+            manager.Update(10f);
+
+            // Assert
+            Assert.Equal(0, manager.ActivePlayerBulletCount);
+        }
+
+        [Fact]
+        public void FireInvaderBullet_ShouldNotHaveLimit()
+        {
+            // Arrange
+            var manager = new BulletManager();
+
+            // Act - Fire multiple invader bullets
+            for (int i = 0; i < 5; i++)
+            {
+                manager.FireInvaderBullet(new Vector2(i * 10, 100));
+            }
+
+            // Assert
+            Assert.Equal(5, manager.InvaderBullets.Count());
+        }
+
+        [Fact]
+        public void Clear_ShouldRemoveAllBullets()
+        {
+            // Arrange
+            var manager = new BulletManager();
+            manager.TryFirePlayerBullet(Vector2.Zero);
+            manager.FireInvaderBullet(Vector2.Zero);
+
+            // Act
+            manager.Clear();
+
+            // Assert
+            Assert.Empty(manager.Bullets);
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: CollisionManagerTests.cs
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Entities;
+using SpaceInvaders.Game.Input;
+using SpaceInvaders.Game.Managers;
+
+namespace SpaceInvaders.Tests.Managers
+{
+    public class CollisionManagerTests
+    {
+        private class MockInputHandler : IInputHandler
+        {
+            public bool IsLeftPressed => false;
+            public bool IsRightPressed => false;
+            public bool IsFirePressed => false;
+            public bool WasFireJustPressed => false;
+            public void Update() { }
+        }
+
+        [Fact]
+        public void CheckCollisions_ShouldDetectPlayerBulletHittingInvader()
+        {
+            // Arrange
+            var manager = new CollisionManager();
+            var bullet = new Bullet(new Vector2(10, 10), 100, BulletType.Player);
+            var invader = new Invader(new Vector2(10, 10), InvaderType.Small);
+            var player = new Player(Vector2.Zero, new MockInputHandler());
+
+            bool collisionDetected = false;
+            CollisionType? detectedType = null;
+
+            manager.CollisionDetected += (s, e) =>
+            {
+                collisionDetected = true;
+                detectedType = e.Type;
+            };
+
+            // Act
+            manager.CheckCollisions(new[] { bullet }, new[] { invader }, player);
+
+            // Assert
+            Assert.True(collisionDetected);
+            Assert.Equal(CollisionType.PlayerBulletHitInvader, detectedType);
+        }
+
+        [Fact]
+        public void CheckCollisions_ShouldDetectInvaderBulletHittingPlayer()
+        {
+            // Arrange
+            var manager = new CollisionManager();
+            var bullet = new Bullet(new Vector2(10, 10), -100, BulletType.Invader);
+            var player = new Player(new Vector2(10, 10), new MockInputHandler());
+
+            bool collisionDetected = false;
+            CollisionType? detectedType = null;
+
+            manager.CollisionDetected += (s, e) =>
+            {
+                collisionDetected = true;
+                detectedType = e.Type;
+            };
+
+            // Act
+            manager.CheckCollisions(new[] { bullet }, new Invader[] { }, player);
+
+            // Assert
+            Assert.True(collisionDetected);
+            Assert.Equal(CollisionType.InvaderBulletHitPlayer, detectedType);
+        }
+
+        [Fact]
+        public void CheckCollisions_ShouldIgnoreInvaderBullets_WhenPlayerNotVulnerable()
+        {
+            // Arrange
+            var manager = new CollisionManager();
+            var bullet = new Bullet(new Vector2(10, 10), -100, BulletType.Invader);
+            var player = new Player(new Vector2(10, 10), new MockInputHandler());
+
+            // Make player invulnerable
+            player.Hit();   // Player is now dying/not vulnerable
+
+            bool collisionDetected = false;
+
+            manager.CollisionDetected -= (s, e) => collisionDetected = true;
+
+            // Act
+            manager.CheckCollisions(new[] { bullet }, new Invader[] { }, player);
+
+            // Assert
+            Assert.False(collisionDetected);
+        }
+
+        [Fact]
+        public void CheckCollision_ShouldOnlyDetectOneHitPerFrame()
+        {
+            // Arrange
+            var manager = new CollisionManager();
+            var bullet1 = new Bullet(new Vector2(10, 10), -100, BulletType.Invader);
+            var bullet2 = new Bullet(new Vector2(10, 10), -100, BulletType.Invader);
+            var player = new Player(new Vector2(10, 10), new MockInputHandler());
+
+            int collisionCount = 0;
+            manager.CollisionDetected += (s, e) => collisionCount++;
+
+            // Act
+            manager.CheckCollisions([bullet1, bullet2], [], player);
+
+            // Assert
+            Assert.Equal(1, collisionCount);
+        }
+
+        [Fact]
+        public void CheckCollisions_ShouldIgnoreInactiveEntities()
+        {
+            // Arrange
+            var manager = new CollisionManager();
+            var bullet = new Bullet(new Vector2(10, 10), -100, BulletType.Invader);
+            var invader = new Invader(new Vector2(10, 10), InvaderType.Small);
+            var player = new Player(Vector2.Zero, new MockInputHandler());
+
+            // Destroy invader
+            invader.Destroy();
+
+            bool collisionDetected = false;
+            manager.CollisionDetected += (s, e) => collisionDetected = true;
+
+            // Act
+            manager.CheckCollisions([bullet], [invader], player);
+
+            // Assert
+            Assert.False(collisionDetected);
+
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: InvaderFormationTests.cs
+
+using SpaceInvaders.Game.Managers;
+using SpaceInvaders.Game.Domain;
+using Xunit;
+
+namespace SpaceInvaders.Tests.Managers
+{
+    public class InvaderFormationTests
+    {
+        [Fact]
+        public void Constructor_ShouldCreate55Invaders()
+        {
+            // Arrange & Act
+            var formation = new InvaderFormation();
+
+            // Assert
+            Assert.Equal(55, formation.ActiveCount);
+        }
+
+        [Fact]
+        public void Update_ShouldMoveInvadersHorizontally()
+        {
+            // Arrange
+            var formation = new InvaderFormation();
+            var firstInvader = formation.Invaders.First();
+            var initialX = firstInvader.Position.X;
+
+            // Act
+            formation.Update(0.1f);
+
+            // Assert
+            var newX = firstInvader.Position.X;
+            Assert.True(newX > initialX, "Invader should move right");
+        }
+
+        [Fact]
+        public void DestroyInvaderAt_ShouldDecreaseActiveCount()
+        {
+            // Arrange
+            var formation = new InvaderFormation();
+            var targetInvader = formation.Invaders.First();
+            var hitPosition = targetInvader.Position + new Vector2(4,4); // Center
+
+            // Act
+            formation.DestroyInvaderAt(hitPosition);
+
+            // Assert
+            Assert.Equal(54, formation.ActiveCount);
+            Assert.False(targetInvader.IsActive, "Invader should be destroyed");
+        }
+
+        [Fact]
+        public void InvaderDestroyed_EventSouldFire()
+        {
+            // Arrange
+            var formation = new InvaderFormation();
+            var eventFired = false;
+            formation.InvaderDestroyed += (s, invader) => eventFired = true;
+
+            var targetInvader = formation.Invaders.First();
+
+            // Act
+            formation.DestroyInvaderAt(targetInvader.Position);
+
+            // Assert
+            Assert.True(eventFired);
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: UFOManagerTests.cs
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Managers;
+
+namespace SpaceInvaders.Tests.Managers
+{
+    public class UFOManagerTests
+    {
+        [Fact]
+        public void CurrentUFO_ShouldBeNullInitially()
+        {
+            // Arrange & Act
+            var manager = new UFOManager();
+
+            // Assert
+            Assert.Null(manager.CurrentUFO);
+        }
+
+        [Fact]
+        public void Update_ShouldEventuallySpawnUFO()
+        {
+            // Arrange
+            var manager = new UFOManager();
+
+            // Act - Update for max spawn time
+            manager.Update(GameConstants.UFO_MAX_SPAWN_TIME + 1);
+
+            // Assert
+            Assert.NotNull(manager.CurrentUFO);
+        }
+
+        [Fact]
+        public void OnPlayerShot_Every15thShot_ShouldGive300Points()
+        {
+            // Arrange
+            var manager = new UFOManager();
+
+            // Fire 14 shots
+            for (int i = 0; i < 14; i++)
+            {
+                manager.OnPlayerShot();
+            }
+
+            // Act - 15th shot and spawn UFO
+            manager.OnPlayerShot();
+            manager.Update(GameConstants.UFO_MAX_SPAWN_TIME + 1);
+
+            // Assert
+            Assert.NotNull(manager.CurrentUFO);
+            // Note: We can't directly test point value without exposing internals
+            // In real implementation, we'd test this through integration tests
+        }
+
+        [Fact]
+        public void TryDestroyUFO_WithValidHit_ShouldReturnTrue()
+        {
+            // Arrange
+            var manager = new UFOManager();
+            manager.Update(GameConstants.UFO_MAX_SPAWN_TIME + 1);   // Spawn UFO
+
+            var ufo = manager.CurrentUFO;
+            Assert.NotNull(ufo);
+
+            bool eventFired = false;
+            manager.UFODestroyed += (s, e) => eventFired = true;
+
+            // Act
+            var hitPoint = ufo.Position + ufo.Size / 2; // Center of UFO
+            bool destroyed = manager.TryDestroyUFO(hitPoint);
+
+            // Assert
+            Assert.True(destroyed);
+            Assert.True(eventFired);
+            Assert.Null(manager.CurrentUFO);
+        }
+
+        [Fact]
+        public void TryDestroyUFO_WithMiss_ShouldReturnFalse()
+        {
+            // Arrange
+            var manager = new UFOManager();
+            manager.Update(GameConstants.UFO_MAX_SPAWN_TIME + 1);   // Spawn UFO
+
+            // Act
+            bool destroyed = manager.TryDestroyUFO(new Vector2(1000, 1000)); // Way off
+
+            // Assert
+            Assert.False(destroyed);
+            Assert.NotNull(manager.CurrentUFO);
+        }
+
+        [Fact]
+        public void Reset_ShouldClearCurrentUFO()
+        {
+            var manager = new UFOManager();
+            manager.Update(GameConstants.UFO_MAX_SPAWN_TIME + 1);   // Spawn UFO
+            Assert.NotNull(manager.CurrentUFO);
+
+            // Act
+            manager.Reset();
+
+            // Assert
+            Assert.Null(manager.CurrentUFO);
+        }
+    }
+}
+
+
+// ========================
+

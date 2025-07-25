@@ -1,6 +1,7 @@
 ﻿using SpaceInvaders.Game.Domain;
 using SpaceInvaders.Game.Entities;
 using SpaceInvaders.Game.Graphics;
+using SpaceInvaders.Game.Managers;
 using Rectangle = SpaceInvaders.Game.Domain.Rectangle;
 
 namespace SpaceInvaders.Game.States
@@ -79,6 +80,7 @@ namespace SpaceInvaders.Game.States
             DrawUFO();
             DrawPlayer();
             DrawBullets();
+            DrawShields();
         }
 
         private void DrawPauseOverlay()
@@ -145,6 +147,37 @@ namespace SpaceInvaders.Game.States
 
                 _renderer.DrawSprite(bulletSprite, bullet.Position, bulletColor);
             }
+        }
+
+        private void DrawShields()
+        {
+            var shieldManager = GetShieldManager();
+
+            foreach (var shield in shieldManager.Shields)
+            {
+                var pixels = shield.GetPixels();
+                var position = shield.Position;
+
+                for (int y = 0; y < ShieldData.SHIELD_HEIGHT; y++)
+                {
+                    for (int x = 0; x < ShieldData.SHIELD_WIDTH; x++)
+                    {
+                        if (pixels[x, y])
+                        {
+                            _renderer.DrawPixel(
+                                (int)(position.X + x),
+                                (int)(position.Y + y),
+                                Color.Lime
+                                );
+                        }
+                    }
+                }
+            }
+        }
+
+        private ShieldManager GetShieldManager()
+        {
+            return _gameCore.ShieldManager ?? throw new InvalidOperationException("ShieldManager is not initialized.");
         }
 
         private void DrawHUD()

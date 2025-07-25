@@ -223,8 +223,8 @@ namespace SpaceInvaders.Game.Managers
         private void IncreaseSpeed()
         {
             var destroyedCount = GameConstants.TotalInvaders - _activeCount;
-            _horizontalSpeed = GameConstants.INVADER_BASE_SPEED
-                               + (destroyedCount * GameConstants.INVADER_SPEED_INCREMENT_PER_KILL);
+            var speedMultiplier = 1.0f + (destroyedCount * 0.02f); // 2% per kill
+            _horizontalSpeed = GameConstants.INVADER_BASE_SPEED * speedMultiplier;
         }
 
         private IEnumerable<Invader> GetActiveInvaders()

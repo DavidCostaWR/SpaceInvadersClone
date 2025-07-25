@@ -1,0 +1,457 @@
+// FOLDER: Entities
+// ========================
+
+
+// FILE: InvaderTests.cs
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Entities;
+
+namespace SpaceInvaders.Tests.Entities
+{
+    public class InvaderTests
+    {
+        [Theory]
+        [InlineData(InvaderType.Small, 30)]
+        [InlineData(InvaderType.Medium, 20)]
+        [InlineData(InvaderType.Large, 10)]
+        public void Constructor_ShouldSetCorrectPointValue(
+            InvaderType type, int expectedPoints)
+        {
+            // Arrange & Act
+            var invader = new Invader(Vector2.Zero, type);
+
+            // Assert
+            Assert.Equal(expectedPoints, invader.PointValue);
+        }
+
+        [Fact]
+        public void Move_ShouldUpdatePosition()
+        {
+            // Arrange
+            var invader = new Invader(new Vector2(10, 10), InvaderType.Small);
+            var movement = new Vector2(5, 0);
+
+            // Act
+            invader.Move(movement);
+
+            // Assert
+            Assert.Equal(15, invader.Position.X);
+            Assert.Equal(10, invader.Position.Y);
+        }
+
+        [Fact]
+        public void Bounds_ShouldBeCorrectForType()
+        {
+            // Arrange
+            var position = new Vector2(10, 20);
+            var invader = new Invader(position, InvaderType.Small);
+
+            // Act
+            var bounds = invader.Bounds;
+
+            // Assert
+            Assert.Equal(10, bounds.X);
+            Assert.Equal(20, bounds.Y);
+            Assert.Equal(8, bounds.Width);
+            Assert.Equal(8, bounds.Height);
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: PlayerDeathTests.cs
+
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Entities;
+using SpaceInvaders.Game.Input;
+
+namespace SpaceInvaders.Tests.Entities
+{
+    public class PlayerDeathTests
+    {
+        private class MockInputHandler : IInputHandler
+        {
+            public bool IsLeftPressed { get; set; }
+            public bool IsRightPressed { get; set; }
+            public bool IsFirePressed { get; set; }
+            public bool WasFireJustPressed { get; set; }
+            public void Update() { }
+        }
+
+        [Fact]
+        public void Hit_ShouldChangeStateToDying()
+        {
+            // Arrange
+            var input = new MockInputHandler();
+            var player = new Player(Vector2.Zero, input);
+
+            // Act
+            player.Hit();
+
+            // Assert
+            Assert.Equal(PlayerState.Dying, player.State);
+            Assert.False(player.IsVulnerable);
+        }
+
+        [Fact]
+        public void Hit_WhenAlreadyDying_ShouldIgnore()
+        {
+            // Arrange
+            var input = new MockInputHandler();
+            var player = new Player(Vector2.Zero, input);
+            player.Hit();   // First hit
+
+            // Act
+            player.Hit();   // Second hit
+
+            // Assert
+            Assert.Equal(PlayerState.Dying, player.State);
+        }
+
+        [Fact]
+        public void Update_WhenDying_ShouldTransitionToDead()
+        {
+            // Arrange
+            var input = new MockInputHandler();
+            var player = new Player(Vector2.Zero, input);
+            bool eventFired = false;
+            player.DeathAnimationComplete += (s, e) => eventFired = true;
+
+            player.Hit();
+
+            // Act - Update for full death animation duration
+            player.Update(2.0f);
+
+            // Assert
+            Assert.Equal(PlayerState.Dead, player.State);
+            Assert.True(eventFired);
+        }
+
+        [Fact]
+        public void Respawn_ShouldSetStateToRespawning()
+        {
+            // Arrange
+            var input = new MockInputHandler();
+            var player = new Player(Vector2.Zero, input);
+            var newPosition = new Vector2(100, 200);
+
+            // Act
+            player.Respawn(newPosition);
+
+            // Assert
+            Assert.Equal(PlayerState.Respawning, player.State);
+            Assert.Equal(newPosition, player.Position);
+            Assert.False(player.IsVulnerable);
+        }
+
+        [Fact]
+        public void Update_WhenRespawning_ShouldTransitionToAlive()
+        {
+            // Arrange
+            var input = new MockInputHandler();
+            var player = new Player(Vector2.Zero, input);
+            player.Respawn(Vector2.Zero);
+
+            // Act - Update for full respawn duration
+            player.Update(3.0f);
+
+            // Assert
+            Assert.Equal(PlayerState.Alive, player.State);
+            Assert.True(player.IsVulnerable);
+        }
+
+        [Fact]
+        public void CanFire_ShouldBeFalse_WhenNotAlive()
+        {
+            // Arrange
+            var input = new MockInputHandler();
+            var player = new Player(Vector2.Zero, input);
+
+            // Act & Assert - Dying state
+            player.Hit();
+            Assert.False(player.CanFire);
+
+            // Act & Assert - Respawning State
+            player.Respawn(Vector2.Zero);
+            Assert.False(player.CanFire);
+        }
+
+        [Fact]
+        public void ShouldRender_ShouldBlink_WhenRespawning()
+        {
+            // Arrange
+            var input = new MockInputHandler();
+            var player = new Player(Vector2.Zero, input);
+            player.Respawn(Vector2.Zero);
+
+            // Act & Assert - Check blinking behavior
+            var renderStates = new List<bool>();
+            for (int i = 0; i < 10; i++)
+            {
+                player.Update(0.1f);    // Update by blink interval
+                renderStates.Add(player.ShouldRender);
+            }
+
+            // Should have both true and false values (blinking)
+            Assert.Contains(true, renderStates);
+            Assert.Contains(false, renderStates);
+        }
+
+        [Fact]
+        public void Movement_ShouldBeDisabled_WhenNotAlive()
+        {
+            // Arrange
+            var input = new MockInputHandler();
+            var player = new Player(Vector2.Zero, input);
+            var initialPosition = player.Position;
+            input.IsLeftPressed = true;
+
+            // Act - Try to move while dying
+            player.Hit();
+            player.Update(0.1f);
+
+            // Assert
+            Assert.Equal(initialPosition, player.Position);
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: PlayerTests.cs
+
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Entities;
+using SpaceInvaders.Game.Input;
+
+namespace SpaceInvaders.Tests.Entities
+{
+    public class PlayerTests
+    {
+        // Mock input handler for testing
+        private class MockInputHandler : IInputHandler
+        {
+            public bool IsLeftPressed { get; set; }
+            public bool IsRightPressed { get; set; }
+            public bool IsFirePressed { get; set; }
+            public bool WasFireJustPressed { get; set; }
+
+            public void Update() { }
+        }
+
+        [Fact]
+        public void Constructor_ShouldThrowOnNullInput()
+        {
+            // Act & Assert
+            Assert.Throws<ArgumentNullException>(() 
+                => new Player(new Vector2(0, 0), null!));
+        }
+
+        [Fact]
+        public void Update_ShouldMoveLeft_WhenLeftPressed()
+        {
+            // Arrange
+            var input = new MockInputHandler { IsLeftPressed = true };
+            var player = new Player(new Vector2(100, 200), input);
+            var initialX = player.Position.X;
+
+            // Act
+            player.Update(0.1f);
+
+            // Assert
+            Assert.True(player.Position.X < initialX);
+            Assert.Equal(200, player.Position.Y); // Y should remain unchanged
+        }
+
+        [Fact]
+        public void Update_ShouldNotMoveOutOfLeftBound()
+        {
+            // Arrange
+            var input = new MockInputHandler { IsLeftPressed = true };
+            var player = new Player(new Vector2(5, 200), input);
+
+            // Act
+            player.Update(1.0f);
+
+            // Assert
+            Assert.Equal(0, player.Position.X); // Should stop at left edge
+        }
+
+        [Fact]
+        public void Update_ShouldNotMoveOutOfRightBound()
+        {
+            // Arrange
+            var input = new MockInputHandler { IsRightPressed = true };
+            var rightEdge = GameConstants.GAME_WIDTH - 13; // Player width is 13
+            var player = new Player(new Vector2(rightEdge - 5, 200), input);
+
+            // Act
+            player.Update(1.0f);
+
+            // Assert
+            Assert.Equal(rightEdge, player.Position.X);
+        }
+
+        [Fact]
+        public void Update_ShouldNotMove_WhenBothKeysPressed()
+        {
+            // Arrange
+            var input = new MockInputHandler { 
+                IsLeftPressed = true, 
+                IsRightPressed = true 
+            };
+            var player = new Player(new Vector2(100, 200), input);
+            var initialPosition = player.Position;
+            
+            // Act
+            player.Update(0.1f);
+
+            // Assert
+            Assert.Equal(initialPosition, player.Position);
+        }
+
+        [Fact]
+        public void FireRequested_ShouldTriggerWhenFirePressed()
+        {
+            // Arrange
+            var input = new MockInputHandler { WasFireJustPressed = true };
+            var player = new Player(Vector2.Zero, input);
+            bool eventFired = false;
+            player.FireRequested += (sender, args) => eventFired = true;
+
+            // Act
+            player.Update(0.1f);
+
+            // Assert
+            Assert.True(eventFired);
+        }
+
+        [Fact]
+        public void CanFire_ShouldBeFalseAfterFiring()
+        {
+            // Arrange
+            var input = new MockInputHandler { WasFireJustPressed = true };
+            var player = new Player(Vector2.Zero, input);
+
+            // Act
+            player.Update(0.1f); // This should trigger the fire event
+
+            // Assert
+            Assert.False(player.CanFire);
+            Assert.True(player.FireCooldownRemaining > 0);
+        }
+
+        [Fact]
+        public void CanFire_ShouldBeTrueAfterCooldown()
+        {
+            // Arrange
+            var input = new MockInputHandler { WasFireJustPressed = true };
+            var player = new Player(Vector2.Zero, input);
+            player.Update(0.1f);
+
+            // Act
+            input.WasFireJustPressed = false;
+            player.Update(GameConstants.PLAYER_FIRE_COOLDOWN + 0.1f); // Wait for cooldown
+
+            // Assert
+            Assert.True(player.CanFire);
+            Assert.Equal(0, player.FireCooldownRemaining);
+        }
+    }
+}
+
+
+// ========================
+
+
+// FILE: UFOTests.cs
+
+using SpaceInvaders.Game.Domain;
+using SpaceInvaders.Game.Entities;
+
+namespace SpaceInvaders.Tests.Entities
+{
+    public class UFOTests
+    {
+        [Fact]
+        public void Constructur_MovingRight_ShouldStartOffScreenLeft()
+        {
+            // Arrange & Act
+            var ufo = new UFO(movingRight: true, pointValue: 100);
+
+            // Assert
+            Assert.True(ufo.Position.X < 0);
+            Assert.Equal(GameConstants.UFO_Y_POSITION, ufo.Position.Y);
+            Assert.True(ufo.IsMovingRight);
+        }
+
+        [Fact]
+        public void Constructor_MovingLeft_ShouldStartOffScreenRight()
+        {
+            // Arrange & Act
+            var ufo = new UFO(movingRight: false, pointValue: 100);
+
+            // Assert
+            Assert.True(ufo.Position.X >= GameConstants.GAME_WIDTH);
+            Assert.Equal(GameConstants.UFO_Y_POSITION, ufo.Position.Y);
+            Assert.False(ufo.IsMovingRight);
+        }
+
+        [Fact]
+        public void Update_ShouldMoveInCorrectDirection()
+        {
+            // Arrange
+            var ufoRight = new UFO(movingRight: true, pointValue: 100);
+            var ufoLeft = new UFO(movingRight: false, pointValue: 100);
+            var initialXRight = ufoRight.Position.X;
+            var initialXLeft = ufoLeft.Position.X;
+
+            // Act
+            ufoRight.Update(0.1f);
+            ufoLeft.Update(0.1f);
+
+            // Assert
+            Assert.True(ufoRight.Position.X > initialXRight);
+            Assert.True(ufoLeft.Position.X < initialXLeft);
+        }
+
+        [Fact]
+        public void Update_ShouldDestroyWhenOffScreen()
+        {
+            // Arrange
+            var ufo = new UFO(movingRight: true, pointValue: 100);
+
+            // Act - Update with large delta to move off screen
+            ufo.Update(10f);
+
+            // Assert
+            Assert.False(ufo.IsActive);
+        }
+
+        [Theory]
+        [InlineData(50)]
+        [InlineData(100)]
+        [InlineData(150)]
+        [InlineData(300)]
+        public void PointValue_ShouldBeSetCorrectly(int points)
+        {
+            // Arrange & Act
+            var ufo = new UFO(movingRight: true, pointValue: points);
+
+            // Assert
+            Assert.Equal(points, ufo.PointValue);
+        }
+    }
+}
+
+
+// ========================
+
