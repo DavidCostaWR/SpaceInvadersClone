@@ -68,6 +68,12 @@ namespace SpaceInvaders.Game.States
 
         private void DrawGameElements()
         {
+            if (IsInWaveTransition())
+            {
+                DrawWaveTransition();
+                return;
+            }
+
             foreach (var invader in _gameCore.Invaders)
             {
                 var sprite = SpriteRepository.Instance.GetInvaderSprite(
@@ -82,6 +88,18 @@ namespace SpaceInvaders.Game.States
             DrawBullets();
             DrawShields();
         }
+
+        private void DrawWaveTransition()
+        {
+            _renderer.Clear(Color.Black);
+
+            var wave = _gameCore.CurrentWave;
+            _renderer.DrawTextCentered($"WAVE {wave}", 100, Color.Cyan, 2);
+            _renderer.DrawTextCentered("GET READY!", 130, Color.Yellow, 1);
+            _renderer.DrawTextCentered($"SCORE: {_gameCore.Score}", 160, Color.Yellow, 1);
+        }
+
+        private bool IsInWaveTransition() => _gameCore.IsTransitioning;
 
         private void DrawPauseOverlay()
         {
@@ -183,6 +201,7 @@ namespace SpaceInvaders.Game.States
         private void DrawHUD()
         {
             _renderer.DrawText($"Score: {_gameCore.Score}", new Vector2(10, 10), Color.White);
+            _renderer.DrawText($"Wave: {_gameCore.CurrentWave}", new Vector2(90, 10), Color.White);
             _renderer.DrawText($"Lives: {_gameCore.Lives}", new Vector2(170, 10), Color.White);
         }
 

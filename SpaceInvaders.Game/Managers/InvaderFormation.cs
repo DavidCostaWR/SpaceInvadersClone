@@ -23,6 +23,8 @@ namespace SpaceInvaders.Game.Managers
         private int _bottomRow;
         private int _topRow;
 
+        private int _currentWave;
+
         // Events for game integration
         public event EventHandler<Invader>? InvaderDestroyed;
         public event EventHandler? ReachedBottom;
@@ -256,23 +258,34 @@ namespace SpaceInvaders.Game.Managers
             }
         }
 
-        public void Reset()
-        {
-            // Clear existing invaders
-            for (int row = 0; row < _rows; row++)
-            {
-                for (int col = 0; col < _columns; col++)
-                {
-                    _grid[row, col] = null;
-                }
-            }
+        public void Reset() => ResetForWave(1);
 
-            // Reset speed and direction
-            _horizontalSpeed = GameConstants.INVADER_BASE_SPEED;
+        public void ResetForWave(int waveNumber)
+        {
+            _currentWave = waveNumber;
+
+            for (int row = 0; row < _rows; row++)
+                for (int col = 0; col < _columns; col++)
+                    _grid[row, col] = null;
+
+            // Calculate starting position based on wave
+            // Wach wave starts one row lower (8 pixels)
+            var dropPerWave = 8f * (waveNumber - 1);
+            var maxDrop = 40f;
+            var actualDrop = Math.Min(dropPerWave, maxDrop);
+
+            var formationWidth = CalculateFormationWidth();
+            _formationPosition = new Vector2(
+                (GameConstants.GAME_WIDTH - formationWidth) / 2f,
+                GameConstants.FORMATION_TOP_MARGIN + actualDrop
+            );
+
+            var speedMultiplier = 1.0f + ((waveNumber - 1) * 0.1f);
+            _horizontalSpeed = GameConstants.INVADER_BASE_SPEED * speedMultiplier;
             _direction = 1;
 
-            // Reinitialize
-            InitializeFormation();
+            InitializeInvaders();
+            UpdateActiveBounds();
         }
     }
 }

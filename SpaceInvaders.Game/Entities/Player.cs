@@ -75,11 +75,13 @@ namespace SpaceInvaders.Game.Entities
         {
             UpdateState(deltaTime);
 
-            if (_state == PlayerState.Alive)
+            if (_state == PlayerState.Alive || _state == PlayerState.Respawning)
             {
                 UpdateCooldown(deltaTime);
                 HandleMovement(deltaTime);
-                HandleFiring();
+
+                if (_state == PlayerState.Alive)
+                    HandleFiring();
             }
         }
 

@@ -3,6 +3,7 @@ using SpaceInvaders.Game.Graphics;
 using SpaceInvaders.Game.Entities;
 using SpaceInvaders.Game.Managers;
 using SpaceInvaders.Game.Input;
+using Rectangle = SpaceInvaders.Game.Domain.Rectangle;
 
 namespace SpaceInvaders.Game
 {
@@ -31,6 +32,11 @@ namespace SpaceInvaders.Game
         private int _score;
         private int _lives;
 
+        private int _currentWave;
+        private bool _transitioning;
+        private float _transitionTimer;
+        private const float WAVE_TRANSITION_TIME = 2.0f;
+
         public GameState State => _state;
         public int Score => _score;
         public int Lives => _lives;
@@ -41,6 +47,8 @@ namespace SpaceInvaders.Game
         public UFO? CurrentUFO => _ufoManager.CurrentUFO;
         public ShieldManager ShieldManager => _shieldManager;
         public IEnumerable<Bullet> Bullets => _bulletManager.Bullets;
+        public int CurrentWave => _currentWave;
+        public bool IsTransitioning => _transitioning;
 
         public GameCore(IInputHandler inputHandler)
         {
@@ -68,11 +76,26 @@ namespace SpaceInvaders.Game
             _collisionManager.CollisionDetected += OnCollisionDetected;
             _player.DeathAnimationComplete += OnPlayerDeathAnimationComplete;
             _ufoManager.UFODestroyed += OnUFODestroyed;
+
+            _currentWave = 1;
+            _transitioning = false;
+            _transitionTimer = 0f;
         }
 
         public void Update(float deltaTime)
         {
             if (_state != GameState.Playing) return;
+
+            if (_transitioning)
+            {
+                _transitionTimer -= deltaTime;
+                if (_transitionTimer <= 0f)
+                {
+                    StartNewWave();
+                    _transitioning = false;
+                }
+                return;
+            }
 
             // Update all game objects
             _invaderFormation.Update(deltaTime);
@@ -95,7 +118,23 @@ namespace SpaceInvaders.Game
 
             // Check victory condition
             if (_invaderFormation.ActiveCount == 0)
-                _state = GameState.Victory;
+            {
+                _transitioning = true;
+                _transitionTimer = WAVE_TRANSITION_TIME;
+            }
+        }
+
+        private void StartNewWave()
+        {
+            _currentWave++;
+
+            _invaderFormation.ResetForWave(_currentWave);
+
+            _bulletManager.Clear();
+            _invaderShootingController.Reset();
+            _shieldManager.Reset();
+            _invaderAnimator.Reset();
+            _ufoManager.Reset();
         }
 
         private void CheckUFOCollisions()
@@ -154,7 +193,28 @@ namespace SpaceInvaders.Game
         private void OnPlayerDeathAnimationComplete(object? sender, EventArgs e)
         {
             if (_lives > 0)
+            {
+                ClearBulletsNearPosition(GameConstants.PlayerStartPosition);
                 _player.Respawn(GameConstants.PlayerStartPosition);
+            }
+        }
+
+        private void ClearBulletsNearPosition(Vector2 position)
+        {
+            var safeZone = new Rectangle(
+                position.X - 10,
+                position.Y - 10,
+                _player.Size.X + 20,
+                _player.Size.Y + 20
+                );
+
+            foreach (var bullet in _bulletManager.Bullets.ToList())
+            {
+                if (bullet.Type == BulletType.Invader && safeZone.Intersects(bullet.Bounds))
+                {
+                    bullet.Destroy();
+                }
+            }
         }
 
         private void OnInvaderDestroyed(object? sender, Invader invader)
@@ -191,6 +251,10 @@ namespace SpaceInvaders.Game
 
         public void Reset()
         {
+            _currentWave = 1;
+            _transitioning = false;
+            _transitionTimer = 0f;
+
             _invaderFormation.Reset();
             _invaderAnimator.Reset();
             _bulletManager.Clear();
